@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database (for production, optional for prototype)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: labpulse-db
+  #   environment:
+  #     POSTGRES_USER: labpulse
+  #     POSTGRES_PASSWORD: labpulse_password
+  #     POSTGRES_DB: labpulse
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - labpulse-network
+
+  # Backend server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: labpulse-server
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: file:./dev.db
+      JWT_SECRET: change-this-in-production
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server/prisma:/app/prisma
+      - ./server/dev.db:/app/dev.db
+    networks:
+      - labpulse-network
+    # depends_on:
+    #   - postgres
+
+  # Frontend client
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: labpulse-client
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "3000:80"
+    networks:
+      - labpulse-network
+    depends_on:
+      - server
+
+networks:
+  labpulse-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:

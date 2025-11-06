@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("executive")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  labs      Lab[]
+}
+
+// Lab/Office model
+model Lab {
+  id                    String   @id @default(cuid())
+  officeId              String   @unique
+  city                  String
+  state                 String
+  practiceModel         String // "PO" or "PLLC"
+  address               String
+  phone                 String
+  managingDentist       String
+  directorFieldOps      String // DFO
+  standardizationStatus String // "Training Plan" or "Graduated"
+
+  // Operational indicators
+  hasBacklog            Boolean  @default(false)
+  hasOvertime           Boolean  @default(false)
+  laborModel            Float    @default(0) // 0 = proper, >0 = over, <0 = under
+  standardizationComplete Boolean @default(false)
+
+  // Manager info
+  labManagerName        String?
+  labManagerEmail       String?
+  labManagerPhone       String?
+
+  // Staffing counts
+  totalStaff            Int      @default(0)
+  countLabManagers      Int      @default(0)
+  countFullTechs        Int      @default(0)
+  countWaxerFinishers   Int      @default(0)
+  countProcessors       Int      @default(0)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relationships
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employees             Employee[]
+  metrics               MonthlyMetric[]
+}
+
+// Employee model
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  position  String // "Lab Manager", "Full Tech", "Waxer Finisher", "Processor"
+  hireDate  DateTime
+  email     String?
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  labId     String
+  lab       Lab      @relation(fields: [labId], references: [id], onDelete: Cascade)
+}
+
+// Monthly metrics and financial data
+model MonthlyMetric {
+  id        String   @id @default(cuid())
+  month     Int      // 1-12
+  year      Int
+
+  // Performance metrics
+  dentureUnits          Int      @default(0)
+  patientVolume         Int      @default(0)
+  practiceRevenue       Float    @default(0)
+
+  // Expenses (excluding outside lab)
+  totalLabExpenses      Float    @default(0)
+  teethSupplies         Float    @default(0)
+  labSupplies           Float    @default(0)
+
+  // Expenses (including outside lab)
+  totalLabExpensesWithOutside Float @default(0)
+
+  // Personnel expenses
+  totalPersonnelExpenses Float   @default(0)
+  overtimeExpenses       Float   @default(0)
+  bonuses                Float   @default(0)
+
+  // Operational status for this month
+  hadBacklog            Boolean  @default(false)
+  hadOvertime           Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  labId     String
+  lab       Lab      @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@unique([labId, month, year])
+  @@index([labId, year, month])
+}
