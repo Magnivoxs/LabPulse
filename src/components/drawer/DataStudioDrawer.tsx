@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import ImportPanel from "@/components/data-studio/ImportPanel";
+import EditPanel from "@/components/data-studio/EditPanel";
 
 export function DataStudioDrawer({
   open, onClose
@@ -59,7 +60,7 @@ export function DataStudioDrawer({
         </nav>
         <div style={{fontSize:14}}>
           {activeTab === "import" && <ImportPanel />}
-          {activeTab === "edit" && <p>Inline editors (coming in M4)</p>}
+          {activeTab === "edit" && <EditPanel />}
           {activeTab === "settings" && <p>Storage: Local JSON (default)</p>}
         </div>
       </aside>
