@@ -28,10 +28,10 @@ importers:
         version: 3.25.76
     devDependencies:
       '@tauri-apps/api':
-        specifier: ^2.0.0
+        specifier: ^2.9.0
         version: 2.9.0
       '@tauri-apps/cli':
-        specifier: ^2.0.0
+        specifier: ^2.9.4
         version: 2.9.4
       '@types/node':
         specifier: ^24.10.0

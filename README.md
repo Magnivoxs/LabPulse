@@ -19,15 +19,18 @@ pnpm install
 pnpm dev
 ```
 
-Or double-click:
-- **Windows**: `Start-LabPulse.ps1`
-- **macOS**: `start-labpulse.command`
+## Run with double-click
+
+- **Windows**: Double-click `Start-LabPulse.ps1` (allow script for this session).
+- **macOS**: Double-click `start-labpulse.command` (first time: `chmod +x start-labpulse.command`).
 
 ### Build Desktop App
 
 ```bash
 pnpm tauri:build
 ```
+
+Artifacts output under `src-tauri/target/` (Win .msi/.exe, macOS .app/.dmg).
 
 ## Project Structure
 
