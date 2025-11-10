@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ImportPanel from "@/components/data-studio/ImportPanel";
 import EditPanel from "@/components/data-studio/EditPanel";
+import SettingsPanel from "@/components/data-studio/SettingsPanel";
 
 export function DataStudioDrawer({
   open, onClose
@@ -61,7 +62,7 @@ export function DataStudioDrawer({
         <div style={{fontSize:14}}>
           {activeTab === "import" && <ImportPanel />}
           {activeTab === "edit" && <EditPanel />}
-          {activeTab === "settings" && <p>Storage: Local JSON (default)</p>}
+          {activeTab === "settings" && <SettingsPanel />}
         </div>
       </aside>
     </div>

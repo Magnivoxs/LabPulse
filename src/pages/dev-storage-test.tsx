@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { LocalJsonStorage } from "@/storage/local-json";
+import { getStorage } from "@/storage";
 import { seedOffices, seedStaff, seedMonthly } from "@/storage/seeds";
 
-const storage = new LocalJsonStorage();
+const storage = getStorage();
 
 export default function DevStorageTest() {
   const [state, setState] = useState<{ offices: any[]; staff: any[]; monthly: any[] } | null>(null);

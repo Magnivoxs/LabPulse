@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { LocalJsonStorage } from "@/storage/local-json";
+import { getStorage } from "@/storage";
 import OfficeGrid from "./grids/OfficeGrid";
 import StaffGrid from "./grids/StaffGrid";
 import MonthlyGrid from "./grids/MonthlyGrid";
 
-const storage = new LocalJsonStorage();
+const storage = getStorage();
 
 export default function EditPanel() {
   const [tab, setTab] = useState<"Offices"|"Staff"|"Monthly">("Monthly");

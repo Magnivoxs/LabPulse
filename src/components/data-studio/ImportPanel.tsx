@@ -3,10 +3,10 @@ import { parseXlsx } from "@/lib/xlsx";
 import { parseCsv } from "@/lib/csv";
 import MappingForm from "./MappingForm";
 import { validateRows, type Entity } from "@/lib/validate";
-import { LocalJsonStorage } from "@/storage/local-json";
+import { getStorage } from "@/storage";
 import { normalizeOfficeId } from "@/lib/ids";
 
-const storage = new LocalJsonStorage();
+const storage = getStorage();
 
 const Fields: Record<Entity,string[]> = {
   Office: ["id","name","state","address","phone","practiceModel","managingDentist","dfo","standardizationStatus","laborModel"],

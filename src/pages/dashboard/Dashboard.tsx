@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { LocalJsonStorage } from "@/storage/local-json";
+import { getStorage } from "@/storage";
 import { toRows } from "@/lib/series";
 import { onStorageChanged } from "@/lib/bus";
 import KpiRow from "@/components/dashboard/KpiRow";
@@ -8,7 +8,7 @@ import ExpenseStack from "@/components/dashboard/charts/ExpenseStack";
 import UnitsPatients from "@/components/dashboard/charts/UnitsPatients";
 import OfficeCompare from "@/components/dashboard/OfficeCompare";
 
-const storage = new LocalJsonStorage();
+const storage = getStorage();
 
 export default function Dashboard() {
   const [data, setData] = useState<any>({ offices: [], staff: [], monthly: [] });
