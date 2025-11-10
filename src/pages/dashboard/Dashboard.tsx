@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LocalJsonStorage } from "@/storage/local-json";
 import { toRows } from "@/lib/series";
+import { onStorageChanged } from "@/lib/bus";
 import KpiRow from "@/components/dashboard/KpiRow";
 import LabPctChart from "@/components/dashboard/charts/LabPctChart";
 import ExpenseStack from "@/components/dashboard/charts/ExpenseStack";
@@ -18,6 +19,10 @@ export default function Dashboard() {
 
   async function reload() { setData(await storage.loadAll()); }
   useEffect(()=>{ reload(); }, []);
+  useEffect(()=>{
+    const off = onStorageChanged(()=> reload());
+    return off;
+  }, []);
 
   useEffect(()=>{
     if (!officeId && data.offices.length) setOfficeId(data.offices[0].id);
