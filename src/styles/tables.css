@@ -1,0 +1,5 @@
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: middle; }
+th { background: #f8fafc; text-align: left; font-weight: 600; font-size: 12px; }
+td input { width: 100%; font-size: 12px; padding: 4px 6px; }
+

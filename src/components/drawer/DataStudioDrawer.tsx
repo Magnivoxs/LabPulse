@@ -18,7 +18,7 @@ export function DataStudioDrawer({
   return (
     <div>
       <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.2)"}} />
-      <aside style={{position:"fixed",top:0,left:0,bottom:0,width:360,background:"#fff",boxShadow:"2px 0 12px rgba(0,0,.1)",padding:12,zIndex:1000}}>
+      <aside style={{position:"fixed",top:0,left:0,bottom:0,width:520,background:"#fff",boxShadow:"2px 0 12px rgba(0,0,.1)",padding:12,zIndex:1000,overflowY:"auto"}}>
         <h2 style={{marginTop:0}}>Data Studio</h2>
         <nav style={{display:"flex",gap:8,marginBottom:16,borderBottom:"1px solid #eee",paddingBottom:8}}>
           <button 
