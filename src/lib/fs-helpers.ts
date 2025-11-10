@@ -21,9 +21,9 @@ async function tauriInit() {
     try {
       // Dynamic import - Tauri modules only available at runtime in desktop
       // @ts-ignore - Module resolution happens at runtime
-      const mod = await import("@tauri-apps/api/fs");
+      const mod = await import(/* @vite-ignore */ "@tauri-apps/api/fs");
       // @ts-ignore - Module resolution happens at runtime
-      const path = await import("@tauri-apps/api/path");
+      const path = await import(/* @vite-ignore */ "@tauri-apps/api/path");
       tfs = mod;
       const appData = await path.appDataDir(); // per-user app data
       baseDir = appData.endsWith("/") ? appData : appData + "/";

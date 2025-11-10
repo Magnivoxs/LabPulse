@@ -10,6 +10,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['@tauri-apps/api'],
+  },
+  ssr: {
+    external: ['@tauri-apps/api'],
+  },
   build: {
     rollupOptions: {
       external: ['@tauri-apps/api/fs', '@tauri-apps/api/path'],
