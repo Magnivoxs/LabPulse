@@ -5,6 +5,7 @@ import MappingForm from "./MappingForm";
 import { validateRows, type Entity } from "@/lib/validate";
 import { getStorage } from "@/storage";
 import { normalizeOfficeId } from "@/lib/ids";
+import { downloadTemplate } from "@/lib/export";
 
 const storage = getStorage();
 
@@ -98,7 +99,7 @@ export default function ImportPanel() {
 
   return (
     <div style={{display:"grid",gap:12}}>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center", flexWrap:"wrap"}}>
         <label>Entity:</label>
         <select value={entity} onChange={e=>{setEntity(e.target.value as Entity); setMapping({});}}>
           <option>Monthly</option><option>Office</option><option>Staff</option>
@@ -109,6 +110,9 @@ export default function ImportPanel() {
           <option value="add">Add Only</option>
         </select>
         <button onClick={saveMapping}>Save Mapping</button>
+        <button onClick={()=>downloadTemplate(Fields[entity], `${entity.toLowerCase()}_template.csv`)} style={{marginLeft:"auto"}}>
+          Download Template
+        </button>
       </div>
 
       <div style={{border:"1px dashed #bbb",padding:16}}>

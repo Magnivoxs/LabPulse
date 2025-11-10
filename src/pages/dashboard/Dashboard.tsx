@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getStorage } from "@/storage";
 import { toRows } from "@/lib/series";
 import { onStorageChanged } from "@/lib/bus";
+import { getAllSettings, setSetting, getSetting } from "@/lib/settings";
 import KpiRow from "@/components/dashboard/KpiRow";
 import LabPctChart from "@/components/dashboard/charts/LabPctChart";
 import ExpenseStack from "@/components/dashboard/charts/ExpenseStack";
@@ -16,6 +17,7 @@ export default function Dashboard() {
   const [includeOutside, setIncludeOutside] = useState(true);
   const [goalLabPct, setGoalLabPct] = useState(13);
   const [goalPersonnelPct, setGoalPersonnelPct] = useState(7);
+  const [thresholds, setThresholds] = useState({ teethPct: 4.2, otPct: 1.0 });
 
   async function reload() { setData(await storage.loadAll()); }
   useEffect(()=>{ reload(); }, []);
@@ -24,9 +26,42 @@ export default function Dashboard() {
     return off;
   }, []);
 
+  // Load settings
   useEffect(()=>{
-    if (!officeId && data.offices.length) setOfficeId(data.offices[0].id);
+    getAllSettings().then(s => {
+      setGoalLabPct(s.goalLabPct);
+      setGoalPersonnelPct(s.goalPersonnelPct);
+      setIncludeOutside(s.includeOutside);
+      setThresholds(s.thresholds);
+      if (s.lastOfficeId) setOfficeId(s.lastOfficeId);
+    });
+  }, []);
+
+  // Reload thresholds when storage changes (Settings panel updates)
+  useEffect(()=>{
+    const off = onStorageChanged(()=> {
+      getAllSettings().then(s => {
+        setGoalLabPct(s.goalLabPct);
+        setGoalPersonnelPct(s.goalPersonnelPct);
+        setThresholds(s.thresholds);
+      });
+    });
+    return off;
+  }, []);
+
+  useEffect(()=>{
+    if (!officeId && data.offices.length) {
+      getSetting("lastOfficeId").then(id => {
+        setOfficeId(id ?? data.offices[0].id);
+      });
+    }
   }, [data.offices, officeId]);
+
+  // Persist settings on change
+  useEffect(()=>{ if (officeId) setSetting("lastOfficeId", officeId); }, [officeId]);
+  useEffect(()=>{ setSetting("includeOutside", includeOutside); }, [includeOutside]);
+  useEffect(()=>{ setSetting("goalLabPct", goalLabPct); }, [goalLabPct]);
+  useEffect(()=>{ setSetting("goalPersonnelPct", goalPersonnelPct); }, [goalPersonnelPct]);
 
   const series = useMemo(()=>{
     const filtered = data.monthly.filter((m:any)=>!officeId || m.officeId===officeId)
@@ -38,8 +73,8 @@ export default function Dashboard() {
   const labPct = latest ? (includeOutside ? latest.labPctIncl : latest.labPctExcl) : 0;
   const personnelPct = latest?.personnelPct ?? 0;
 
-  const teethAnom = latest ? latest.teethPct > 4.2 : false;
-  const otAnom = latest ? latest.otPct > 1.0 : false;
+  const teethAnom = latest ? latest.teethPct > thresholds.teethPct : false;
+  const otAnom = latest ? latest.otPct > thresholds.otPct : false;
 
   return (
     <div style={{padding:16, display:"grid", gap:12}}>
@@ -61,6 +96,7 @@ export default function Dashboard() {
         goalPersonnelPct={goalPersonnelPct}
         staffCount={data.staff.filter((s:any)=>s.officeId===officeId).length}
         alerts={{ teeth: teethAnom, ot: otAnom }}
+        thresholds={thresholds}
       />
 
       {/* Charts */}

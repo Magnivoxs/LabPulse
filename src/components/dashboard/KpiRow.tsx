@@ -7,6 +7,7 @@ export default function KpiRow(props:{
   latestRev:number; labPct:number; goalLabPct:number;
   personnelPct:number; goalPersonnelPct:number;
   staffCount:number; alerts:{teeth:boolean; ot:boolean};
+  thresholds:{teethPct:number; otPct:number};
 }) {
   const { latestRev, labPct, personnelPct, staffCount, alerts } = props;
   return (
