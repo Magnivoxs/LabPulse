@@ -14,31 +14,40 @@ async function lsRead(path: string, fallback: Json){ try{
 async function lsWrite(path: string, data: Json){ localStorage.setItem(path, JSON.stringify(data)); }
 
 // ---------- Tauri FS ----------
-let tfs: any = null, baseDir: string | null = null;
+let tfs: any = null;
+let pathApi: any = null;
+let baseDir: string | null = null;
 
 async function tauriInit() {
-  if (!tfs) {
-    try {
-      // Dynamic import - Tauri modules only available at runtime in desktop
-      // @ts-ignore - Module resolution happens at runtime
-      const mod = await import(/* @vite-ignore */ "@tauri-apps/api/fs");
-      // @ts-ignore - Module resolution happens at runtime
-      const path = await import(/* @vite-ignore */ "@tauri-apps/api/path");
-      tfs = mod;
-      const appData = await path.appDataDir(); // per-user app data
-      baseDir = appData.endsWith("/") ? appData : appData + "/";
-    } catch (e) {
-      // Tauri modules not available (browser mode)
-      throw new Error("Tauri FS not available");
-    }
+  if (!isTauri || tfs) return;
+
+  try {
+    // Hide specifiers from Vite by constructing strings at runtime
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const dynImport = new Function("m", "return import(m)") as (m: string) => Promise<any>;
+    const fsSpec   = String.fromCharCode(64) + "tauri-apps" + "/api/fs";
+    const pathSpec = String.fromCharCode(64) + "tauri-apps" + "/api/path";
+
+    const fsMod   = await dynImport(fsSpec);
+    const pathMod = await dynImport(pathSpec);
+
+    tfs = fsMod;
+    pathApi = pathMod;
+
+    const appData = await pathApi.appDataDir();
+    baseDir = appData.endsWith("/") ? appData : appData + "/";
+  } catch (err) {
+    console.warn("Tauri FS not available; falling back to localStorage.", err);
+    tfs = null;
   }
 }
 
 async function tauriEnsureDir(rel: string){
   try {
     await tauriInit();
+    if (!tfs || !baseDir) return;
     const parts = rel.split("/").filter(Boolean);
-    let cur = baseDir!;
+    let cur = baseDir;
     for (const p of parts) {
       cur += p + "/";
       try { await tfs.createDir(cur, { recursive: true }); } catch {}
@@ -51,7 +60,8 @@ async function tauriEnsureDir(rel: string){
 async function tauriRead(rel: string, fallback: Json){
   try {
     await tauriInit();
-    const full = baseDir! + rel;
+    if (!tfs || !baseDir) return fallback;
+    const full = baseDir + rel;
     const exists = await tfs.exists(full);
     if (!exists) return fallback;
     const raw = await tfs.readTextFile(full);
@@ -64,7 +74,12 @@ async function tauriRead(rel: string, fallback: Json){
 async function tauriWrite(rel: string, data: Json){
   try {
     await tauriInit();
-    const full = baseDir! + rel;
+    if (!tfs || !baseDir) {
+      // Fallback to localStorage if Tauri not available
+      lsWrite(rel, data);
+      return;
+    }
+    const full = baseDir + rel;
     const tmp = full + ".tmp";
     await tfs.writeTextFile(tmp, JSON.stringify(data));
     // fs atomic-ish replace
