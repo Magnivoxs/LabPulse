@@ -21,6 +21,8 @@ export default function LabPctChart({ rows, includeOutside, goal, showBoth }:{
           ) : (
             <Line type="monotone" dataKey={includeOutside?"labPctIncl":"labPctExcl"} name={includeOutside?"Lab % incl":"Lab % excl"} strokeWidth={2} />
           )}
+          {/* rolling avg if available */}
+          <Line type="monotone" dataKey="labPctInclRolling" name="Lab % 3-mo avg" strokeWidth={2} dot={false} stroke="#888" strokeDasharray="5 5" />
           <Line type="monotone" dataKey="goal" name="Goal" strokeWidth={2} dot={false} stroke="#888" />
         </LineChart>
       </ResponsiveContainer>

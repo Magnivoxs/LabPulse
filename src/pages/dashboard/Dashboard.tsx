@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getStorage } from "@/storage";
-import { toRows } from "@/lib/series";
+import { enrichForCharts, groupByOffice, latestYoY } from "@/lib/analytics";
 import { onStorageChanged } from "@/lib/bus";
 import { getAllSettings, setSetting, getSetting } from "@/lib/settings";
 import KpiRow from "@/components/dashboard/KpiRow";
@@ -63,15 +63,22 @@ export default function Dashboard() {
   useEffect(()=>{ setSetting("goalLabPct", goalLabPct); }, [goalLabPct]);
   useEffect(()=>{ setSetting("goalPersonnelPct", goalPersonnelPct); }, [goalPersonnelPct]);
 
-  const series = useMemo(()=>{
-    const filtered = data.monthly.filter((m:any)=>!officeId || m.officeId===officeId)
-      .sort((a:any,b:any)=>a.period.localeCompare(b.period));
-    return toRows(filtered);
+  const officeSeries = useMemo(() => {
+    const byOffice = groupByOffice(data.monthly ?? []);
+    const series = officeId ? (byOffice.get(officeId) ?? []) : [];
+    return enrichForCharts(series);
   }, [data.monthly, officeId]);
 
-  const latest = series.at(-1);
+  const latest = officeSeries.at(-1);
   const labPct = latest ? (includeOutside ? latest.labPctIncl : latest.labPctExcl) : 0;
   const personnelPct = latest?.personnelPct ?? 0;
+
+  // YoY deltas for KPI badges
+  const { labYoY, personnelYoY } = useMemo(() => {
+    const byOffice = groupByOffice(data.monthly ?? []);
+    const series = officeId ? (byOffice.get(officeId) ?? []) : [];
+    return latestYoY(series as any);
+  }, [data.monthly, officeId]);
 
   const teethAnom = latest ? latest.teethPct > thresholds.teethPct : false;
   const otAnom = latest ? latest.otPct > thresholds.otPct : false;
@@ -96,34 +103,34 @@ export default function Dashboard() {
         goalPersonnelPct={goalPersonnelPct}
         staffCount={data.staff.filter((s:any)=>s.officeId===officeId).length}
         alerts={{ teeth: teethAnom, ot: otAnom }}
-        thresholds={thresholds}
+        yoy={{ lab: labYoY, personnel: personnelYoY }}
       />
 
       {/* Charts */}
       <div>
         <h3>Overview: Lab % vs Goal</h3>
-        <LabPctChart rows={series} includeOutside={includeOutside} goal={goalLabPct}/>
+        <LabPctChart rows={officeSeries} includeOutside={includeOutside} goal={goalLabPct}/>
       </div>
 
       <div style={{display:"grid", gap:12, gridTemplateColumns:"1fr 1fr"}}>
         <div>
           <h3>Expense % Breakdown</h3>
-          <ExpenseStack rows={series}/>
+          <ExpenseStack rows={officeSeries}/>
         </div>
         <div>
           <h3>Lab % Incl vs Excl Outside</h3>
-          <LabPctChart rows={series} includeOutside={true} goal={goalLabPct} showBoth />
+          <LabPctChart rows={officeSeries} includeOutside={true} goal={goalLabPct} showBoth />
         </div>
       </div>
 
       <div style={{display:"grid", gap:12, gridTemplateColumns:"1fr 1fr"}}>
         <div>
           <h3>Denture Units</h3>
-          <UnitsPatients rows={series} mode="units"/>
+          <UnitsPatients rows={officeSeries} mode="units"/>
         </div>
         <div>
           <h3>Patient Volume</h3>
-          <UnitsPatients rows={series} mode="patients"/>
+          <UnitsPatients rows={officeSeries} mode="patients"/>
         </div>
       </div>
 
