@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ImportPanel from "@/components/data-studio/ImportPanel";
 
 export function DataStudioDrawer({
   open, onClose
@@ -57,7 +58,7 @@ export function DataStudioDrawer({
           </button>
         </nav>
         <div style={{fontSize:14}}>
-          {activeTab === "import" && <p>Drag CSV/XLSX here (coming in M3)</p>}
+          {activeTab === "import" && <ImportPanel />}
           {activeTab === "edit" && <p>Inline editors (coming in M4)</p>}
           {activeTab === "settings" && <p>Storage: Local JSON (default)</p>}
         </div>
