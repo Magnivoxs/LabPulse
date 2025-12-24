@@ -3,6 +3,7 @@
 
 mod db;
 mod commands;
+mod imports;
 
 use tauri::Manager;
 use commands::DbConnection;
@@ -11,6 +12,7 @@ use std::sync::Mutex;
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize database on app startup
             let app_handle = app.handle().clone();
@@ -38,6 +40,9 @@ fn main() {
             commands::get_db_table_counts,
             commands::get_offices,
             commands::get_db_path,
+            commands::import_offices_file,
+            commands::import_staff_file,
+            commands::import_contacts_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

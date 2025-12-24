@@ -32,8 +32,8 @@ fn run_migrations(conn: &Connection) -> Result<()> {
             address TEXT,
             phone TEXT,
             managing_dentist TEXT,
-            dfo TEXT CHECK(dfo IN ('Candi Abt', 'Balt Torres')),
-            standardization_status TEXT CHECK(standardization_status IN ('Training Plan', 'Graduated', 'Not Started')),
+            dfo TEXT,
+            standardization_status TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )",
@@ -48,6 +48,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
             name TEXT NOT NULL,
             job_title TEXT NOT NULL,
             hire_date DATE,
+            UNIQUE(office_id, name),
             FOREIGN KEY (office_id) REFERENCES offices(office_id) ON DELETE CASCADE
         )",
         [],

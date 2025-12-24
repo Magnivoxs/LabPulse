@@ -26,3 +26,23 @@ pub fn get_db_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(db_path.to_string_lossy().to_string())
 }
 
+use crate::imports::{import_offices, import_staff, import_contacts, ImportSummary};
+
+#[tauri::command]
+pub fn import_offices_file(db: State<DbConnection>, file_path: String) -> Result<ImportSummary, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    import_offices(&file_path, &conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_staff_file(db: State<DbConnection>, file_path: String) -> Result<ImportSummary, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    import_staff(&file_path, &conn).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_contacts_file(db: State<DbConnection>, file_path: String) -> Result<ImportSummary, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    import_contacts(&file_path, &conn).map_err(|e| e.to_string())
+}
+
