@@ -1,6 +1,8 @@
 use crate::db::{get_all_offices, get_table_counts, Office, TableCounts};
 use rusqlite::Connection;
+use rusqlite::params;
 use tauri::State;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 pub struct DbConnection(pub Mutex<Connection>);
@@ -44,5 +46,171 @@ pub fn import_staff_file(db: State<DbConnection>, file_path: String) -> Result<I
 pub fn import_contacts_file(db: State<DbConnection>, file_path: String) -> Result<ImportSummary, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     import_contacts(&file_path, &conn).map_err(|e| e.to_string())
+}
+
+// Financial data structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FinancialData {
+    pub id: Option<i64>,
+    pub office_id: i64,
+    pub year: i32,
+    pub month: i32,
+    pub revenue: f64,
+    pub lab_exp_no_outside: f64,
+    pub lab_exp_with_outside: f64,
+    pub outside_lab_spend: f64,
+    pub teeth_supplies: f64,
+    pub lab_supplies: f64,
+    pub lab_hub: f64,
+    pub lss_expense: f64,
+    pub personnel_exp: f64,
+    pub overtime_exp: f64,
+    pub bonus_exp: f64,
+}
+
+// Save or update financial data
+#[tauri::command]
+pub fn save_financial_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+    revenue: f64,
+    lab_exp_no_outside: f64,
+    lab_exp_with_outside: f64,
+    outside_lab_spend: f64,
+    teeth_supplies: f64,
+    lab_supplies: f64,
+    lab_hub: f64,
+    lss_expense: f64,
+    personnel_exp: f64,
+    overtime_exp: f64,
+    bonus_exp: f64,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO monthly_financials (
+            office_id, year, month, revenue, lab_exp_no_outside,
+            lab_exp_with_outside, outside_lab_spend, teeth_supplies,
+            lab_supplies, lab_hub, lss_expense, personnel_exp, overtime_exp, bonus_exp
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+        ON CONFLICT(office_id, year, month) DO UPDATE SET
+            revenue = excluded.revenue,
+            lab_exp_no_outside = excluded.lab_exp_no_outside,
+            lab_exp_with_outside = excluded.lab_exp_with_outside,
+            outside_lab_spend = excluded.outside_lab_spend,
+            teeth_supplies = excluded.teeth_supplies,
+            lab_supplies = excluded.lab_supplies,
+            lab_hub = excluded.lab_hub,
+            lss_expense = excluded.lss_expense,
+            personnel_exp = excluded.personnel_exp,
+            overtime_exp = excluded.overtime_exp,
+            bonus_exp = excluded.bonus_exp",
+        params![
+            office_id, year, month, revenue, lab_exp_no_outside,
+            lab_exp_with_outside, outside_lab_spend, teeth_supplies,
+            lab_supplies, lab_hub, lss_expense, personnel_exp, overtime_exp, bonus_exp
+        ],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok("Financial data saved successfully".to_string())
+}
+
+// Get financial data for specific office/month
+#[tauri::command]
+pub fn get_financial_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<FinancialData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, revenue, lab_exp_no_outside,
+                lab_exp_with_outside, outside_lab_spend, teeth_supplies,
+                lab_supplies, lab_hub, lss_expense, personnel_exp, overtime_exp, bonus_exp
+         FROM monthly_financials
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| {
+            Ok(FinancialData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                revenue: row.get(4)?,
+                lab_exp_no_outside: row.get(5)?,
+                lab_exp_with_outside: row.get(6)?,
+                outside_lab_spend: row.get(7)?,
+                teeth_supplies: row.get(8)?,
+                lab_supplies: row.get(9)?,
+                lab_hub: row.get(10)?,
+                lss_expense: row.get(11)?,
+                personnel_exp: row.get(12)?,
+                overtime_exp: row.get(13)?,
+                bonus_exp: row.get(14)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+// Get previous month's financial data (for comparison)
+#[tauri::command]
+pub fn get_previous_month_financial(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<FinancialData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Calculate previous month
+    let (prev_year, prev_month) = if month == 1 {
+        (year - 1, 12)
+    } else {
+        (year, month - 1)
+    };
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, revenue, lab_exp_no_outside,
+                lab_exp_with_outside, outside_lab_spend, teeth_supplies,
+                lab_supplies, lab_hub, lss_expense, personnel_exp, overtime_exp, bonus_exp
+         FROM monthly_financials
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, prev_year, prev_month],
+        |row| {
+            Ok(FinancialData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                revenue: row.get(4)?,
+                lab_exp_no_outside: row.get(5)?,
+                lab_exp_with_outside: row.get(6)?,
+                outside_lab_spend: row.get(7)?,
+                teeth_supplies: row.get(8)?,
+                lab_supplies: row.get(9)?,
+                lab_hub: row.get(10)?,
+                lss_expense: row.get(11)?,
+                personnel_exp: row.get(12)?,
+                overtime_exp: row.get(13)?,
+                bonus_exp: row.get(14)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
 }
 

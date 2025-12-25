@@ -80,6 +80,8 @@ fn run_migrations(conn: &Connection) -> Result<()> {
             outside_lab_spend REAL,
             teeth_supplies REAL,
             lab_supplies REAL,
+            lab_hub REAL NOT NULL DEFAULT 0,
+            lss_expense REAL NOT NULL DEFAULT 0,
             personnel_exp REAL,
             overtime_exp REAL,
             bonus_exp REAL,
