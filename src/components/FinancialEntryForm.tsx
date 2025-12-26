@@ -39,6 +39,11 @@ export default function FinancialEntryForm({
     e.target.select();
   };
 
+  // Helper to format number with commas for display
+  const formatNumberForDisplay = (value: number): string => {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
+
   // Load data when office/month changes
   useEffect(() => {
     if (officeId) {
@@ -113,8 +118,10 @@ export default function FinancialEntryForm({
   };
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
+    // Remove commas before parsing
+    const cleanValue = value.replace(/,/g, '');
     // Allow empty string to become 0, but preserve actual 0 values
-    const numValue = value === '' ? 0 : parseFloat(value);
+    const numValue = cleanValue === '' ? 0 : parseFloat(cleanValue);
     // Only update if it's a valid number or 0
     if (!isNaN(numValue)) {
       setFormData(prev => ({ ...prev, [field]: numValue }));
@@ -292,13 +299,12 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.revenue}
+                type="text"
+                value={formatNumberForDisplay(formData.revenue)}
                 onChange={(e) => handleInputChange('revenue', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
           </div>
@@ -322,18 +328,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.lab_exp_no_outside}
+                type="text"
+                value={formatNumberForDisplay(formData.lab_exp_no_outside)}
                 onChange={(e) => handleInputChange('lab_exp_no_outside', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.lab_exp_no_outside.toLocaleString()}
+                Prev: ${previousMonthData.lab_exp_no_outside.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -346,18 +351,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.lab_exp_with_outside}
+                type="text"
+                value={formatNumberForDisplay(formData.lab_exp_with_outside)}
                 onChange={(e) => handleInputChange('lab_exp_with_outside', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.lab_exp_with_outside.toLocaleString()}
+                Prev: ${previousMonthData.lab_exp_with_outside.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -370,8 +374,8 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={calculatedOutsideLabSpend}
+                type="text"
+                value={formatNumberForDisplay(calculatedOutsideLabSpend)}
                 readOnly
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                 placeholder="0.00"
@@ -379,7 +383,7 @@ export default function FinancialEntryForm({
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${(previousMonthData.lab_exp_with_outside - previousMonthData.lab_exp_no_outside).toLocaleString()}
+                Prev: ${(previousMonthData.lab_exp_with_outside - previousMonthData.lab_exp_no_outside).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -392,18 +396,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.lab_supplies}
+                type="text"
+                value={formatNumberForDisplay(formData.lab_supplies)}
                 onChange={(e) => handleInputChange('lab_supplies', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.lab_supplies.toLocaleString()}
+                Prev: ${previousMonthData.lab_supplies.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -416,18 +419,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.teeth_supplies}
+                type="text"
+                value={formatNumberForDisplay(formData.teeth_supplies)}
                 onChange={(e) => handleInputChange('teeth_supplies', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.teeth_supplies.toLocaleString()}
+                Prev: ${previousMonthData.teeth_supplies.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -440,18 +442,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.lab_hub}
+                type="text"
+                value={formatNumberForDisplay(formData.lab_hub)}
                 onChange={(e) => handleInputChange('lab_hub', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.lab_hub.toLocaleString()}
+                Prev: ${previousMonthData.lab_hub.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -464,18 +465,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.lss_expense}
+                type="text"
+                value={formatNumberForDisplay(formData.lss_expense)}
                 onChange={(e) => handleInputChange('lss_expense', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.lss_expense.toLocaleString()}
+                Prev: ${previousMonthData.lss_expense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -493,18 +493,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.personnel_exp}
+                type="text"
+                value={formatNumberForDisplay(formData.personnel_exp)}
                 onChange={(e) => handleInputChange('personnel_exp', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.personnel_exp.toLocaleString()}
+                Prev: ${previousMonthData.personnel_exp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -516,18 +515,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.overtime_exp}
+                type="text"
+                value={formatNumberForDisplay(formData.overtime_exp)}
                 onChange={(e) => handleInputChange('overtime_exp', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.overtime_exp.toLocaleString()}
+                Prev: ${previousMonthData.overtime_exp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>
@@ -539,18 +537,17 @@ export default function FinancialEntryForm({
             <div className="flex items-center gap-2">
               <span className="text-gray-500">$</span>
               <input
-                type="number"
-                value={formData.bonus_exp}
+                type="text"
+                value={formatNumberForDisplay(formData.bonus_exp)}
                 onChange={(e) => handleInputChange('bonus_exp', e.target.value)}
                 onFocus={handleFocus}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="0.00"
-                step="0.01"
               />
             </div>
             {previousMonthData && (
               <div className="text-xs text-gray-500 mt-1">
-                Prev: ${previousMonthData.bonus_exp.toLocaleString()}
+                Prev: ${previousMonthData.bonus_exp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             )}
           </div>

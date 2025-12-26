@@ -43,3 +43,28 @@ export interface FinancialMetrics {
   overtimePercent: number;
 }
 
+// Operations data structure
+export interface OperationsData {
+  id?: number;
+  office_id: number;
+  year: number;
+  month: number;
+  backlog_case_count: number;
+  overtime_value: number;
+  labor_model_value: number;
+}
+
+// Volume data structure
+export interface VolumeData {
+  id?: number;
+  office_id: number;
+  year: number;
+  month: number;
+  backlog_in_lab: number;
+  backlog_in_clinic: number;
+  total_weekly_units: number;
+}
+
+// Tab types for navigation
+export type DataEntryTab = 'financial' | 'operations' | 'volume' | 'notes';
+

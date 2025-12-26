@@ -3,6 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import MonthOfficeSelector from '../components/MonthOfficeSelector';
 import FinancialEntryForm from '../components/FinancialEntryForm';
+import OperationsEntryForm from '../components/OperationsEntryForm';
+import VolumeEntryForm from '../components/VolumeEntryForm';
+import NotesSection from '../components/NotesSection';
+import { DataEntryTab } from '../types/DataEntry';
 
 interface ImportSummary {
   filename: string;
@@ -22,7 +26,15 @@ export default function DataEntry() {
   const [selectedOffice, setSelectedOffice] = useState<number | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<DataEntryTab>('financial');
+  
+  // Data existence tracking
   const [hasFinancialData, setHasFinancialData] = useState(false);
+  const [hasOperationsData, setHasOperationsData] = useState(false);
+  const [hasVolumeData, setHasVolumeData] = useState(false);
+  const [hasNotesData, setHasNotesData] = useState(false);
 
   const handleImport = async (importType: 'offices' | 'staff' | 'contacts') => {
     setImporting(importType);
@@ -44,8 +56,6 @@ export default function DataEntry() {
         return;
       }
 
-      console.log(`Importing ${importType} from:`, selected);
-
       let result: ImportSummary;
       if (importType === 'offices') {
         result = await invoke<ImportSummary>('import_offices_file', { filePath: selected });
@@ -55,7 +65,6 @@ export default function DataEntry() {
         result = await invoke<ImportSummary>('import_contacts_file', { filePath: selected });
       }
 
-      console.log('Import result:', result);
       setLastImport(result);
     } catch (err) {
       console.error('Import error:', err);
@@ -64,6 +73,9 @@ export default function DataEntry() {
       setImporting('');
     }
   };
+
+  // Calculate overall data status
+  const hasAnyData = hasFinancialData || hasOperationsData || hasVolumeData || hasNotesData;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -91,7 +103,6 @@ export default function DataEntry() {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Office List Import */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Office List</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -106,7 +117,6 @@ export default function DataEntry() {
                 </button>
               </div>
 
-              {/* Staff Roster Import */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Staff Roster</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -121,7 +131,6 @@ export default function DataEntry() {
                 </button>
               </div>
 
-              {/* Contacts Import */}
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Lab Manager Contacts</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -137,7 +146,6 @@ export default function DataEntry() {
               </div>
             </div>
 
-            {/* Import Summary */}
             {lastImport && (
               <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
                 <h3 className="font-semibold text-green-900 mb-2">Import Complete</h3>
@@ -178,19 +186,122 @@ export default function DataEntry() {
             setSelectedMonth(month);
             setSelectedYear(year);
           }}
-          hasData={hasFinancialData}
+          hasData={hasAnyData}
         />
       </div>
 
-      {/* Financial Entry Form */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-6">Financial Data Entry</h2>
-        <FinancialEntryForm
-          officeId={selectedOffice}
-          month={selectedMonth}
-          year={selectedYear}
-          onDataLoaded={setHasFinancialData}
-        />
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow">
+        <div className="border-b border-gray-200">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('financial')}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                activeTab === 'financial'
+                  ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                Financial
+                {hasFinancialData && <span className="text-green-500">✓</span>}
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('operations')}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                activeTab === 'operations'
+                  ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                Operations
+                {hasOperationsData && <span className="text-green-500">✓</span>}
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('volume')}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                activeTab === 'volume'
+                  ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                Volume
+                {hasVolumeData && <span className="text-green-500">✓</span>}
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                activeTab === 'notes'
+                  ? 'bg-blue-600 text-white border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                Notes
+                {hasNotesData && <span className="text-green-500">✓</span>}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'financial' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Financial Data Entry</h2>
+              <FinancialEntryForm
+                officeId={selectedOffice}
+                month={selectedMonth}
+                year={selectedYear}
+                onDataLoaded={setHasFinancialData}
+              />
+            </div>
+          )}
+
+          {activeTab === 'operations' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Operations Data Entry</h2>
+              <OperationsEntryForm
+                officeId={selectedOffice}
+                month={selectedMonth}
+                year={selectedYear}
+                onDataLoaded={setHasOperationsData}
+              />
+            </div>
+          )}
+
+          {activeTab === 'volume' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Volume Data Entry</h2>
+              <VolumeEntryForm
+                officeId={selectedOffice}
+                month={selectedMonth}
+                year={selectedYear}
+                onDataLoaded={setHasVolumeData}
+              />
+            </div>
+          )}
+
+          {activeTab === 'notes' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-6">Monthly Notes</h2>
+              <NotesSection
+                officeId={selectedOffice}
+                month={selectedMonth}
+                year={selectedYear}
+                onDataLoaded={setHasNotesData}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

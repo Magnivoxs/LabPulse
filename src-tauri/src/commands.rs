@@ -214,3 +214,282 @@ pub fn get_previous_month_financial(
     }
 }
 
+// Operations data structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OperationsData {
+    pub id: Option<i64>,
+    pub office_id: i64,
+    pub year: i32,
+    pub month: i32,
+    pub backlog_case_count: i32,
+    pub overtime_value: f64,
+    pub labor_model_value: f64,
+}
+
+// Save or update operations data
+#[tauri::command]
+pub fn save_operations_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+    backlog_case_count: i32,
+    overtime_value: f64,
+    labor_model_value: f64,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO monthly_ops (
+            office_id, year, month, backlog_case_count, overtime_value, labor_model_value
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(office_id, year, month) DO UPDATE SET
+            backlog_case_count = excluded.backlog_case_count,
+            overtime_value = excluded.overtime_value,
+            labor_model_value = excluded.labor_model_value",
+        params![office_id, year, month, backlog_case_count, overtime_value, labor_model_value],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok("Operations data saved successfully".to_string())
+}
+
+// Get operations data for specific office/month
+#[tauri::command]
+pub fn get_operations_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<OperationsData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, backlog_case_count, overtime_value, labor_model_value
+         FROM monthly_ops
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| {
+            Ok(OperationsData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                backlog_case_count: row.get(4)?,
+                overtime_value: row.get(5)?,
+                labor_model_value: row.get(6)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+// Get previous month's operations data
+#[tauri::command]
+pub fn get_previous_month_operations(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<OperationsData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Calculate previous month
+    let (prev_year, prev_month) = if month == 1 {
+        (year - 1, 12)
+    } else {
+        (year, month - 1)
+    };
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, backlog_case_count, overtime_value, labor_model_value
+         FROM monthly_ops
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, prev_year, prev_month],
+        |row| {
+            Ok(OperationsData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                backlog_case_count: row.get(4)?,
+                overtime_value: row.get(5)?,
+                labor_model_value: row.get(6)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+// Volume data structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VolumeData {
+    pub id: Option<i64>,
+    pub office_id: i64,
+    pub year: i32,
+    pub month: i32,
+    pub backlog_in_lab: i32,
+    pub backlog_in_clinic: i32,
+    pub total_weekly_units: i32,
+}
+
+// Save or update volume data
+#[tauri::command]
+pub fn save_volume_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+    backlog_in_lab: i32,
+    backlog_in_clinic: i32,
+    total_weekly_units: i32,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO monthly_volume (
+            office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        ON CONFLICT(office_id, year, month) DO UPDATE SET
+            backlog_in_lab = excluded.backlog_in_lab,
+            backlog_in_clinic = excluded.backlog_in_clinic,
+            total_weekly_units = excluded.total_weekly_units",
+        params![office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok("Volume data saved successfully".to_string())
+}
+
+// Get volume data for specific office/month
+#[tauri::command]
+pub fn get_volume_data(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<VolumeData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
+         FROM monthly_volume
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| {
+            Ok(VolumeData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                backlog_in_lab: row.get(4)?,
+                backlog_in_clinic: row.get(5)?,
+                total_weekly_units: row.get(6)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+// Get previous month's volume data
+#[tauri::command]
+pub fn get_previous_month_volume(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<VolumeData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Calculate previous month
+    let (prev_year, prev_month) = if month == 1 {
+        (year - 1, 12)
+    } else {
+        (year, month - 1)
+    };
+    
+    let result = conn.query_row(
+        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
+         FROM monthly_volume
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, prev_year, prev_month],
+        |row| {
+            Ok(VolumeData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                month: row.get(3)?,
+                backlog_in_lab: row.get(4)?,
+                backlog_in_clinic: row.get(5)?,
+                total_weekly_units: row.get(6)?,
+            })
+        },
+    );
+    
+    match result {
+        Ok(data) => Ok(Some(data)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+// Save or update note
+#[tauri::command]
+pub fn save_note(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+    note_text: String,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO notes_actions (office_id, year, month, note_text)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(office_id, year, month) DO UPDATE SET
+             note_text = excluded.note_text,
+             updated_at = CURRENT_TIMESTAMP",
+        params![office_id, year, month, note_text],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok("Note saved successfully".to_string())
+}
+
+// Get notes for specific office/month
+#[tauri::command]
+pub fn get_notes(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Option<String>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    let result = conn.query_row(
+        "SELECT note_text FROM notes_actions
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| row.get(0),
+    );
+    
+    match result {
+        Ok(note_text) => Ok(Some(note_text)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+

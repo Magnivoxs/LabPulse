@@ -46,6 +46,14 @@ fn main() {
             commands::save_financial_data,
             commands::get_financial_data,
             commands::get_previous_month_financial,
+            commands::save_operations_data,
+            commands::get_operations_data,
+            commands::get_previous_month_operations,
+            commands::save_volume_data,
+            commands::get_volume_data,
+            commands::get_previous_month_volume,
+            commands::save_note,
+            commands::get_notes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
