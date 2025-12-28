@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useLocation } from 'react-router-dom';
 import MonthOfficeSelector from '../components/MonthOfficeSelector';
 import FinancialEntryForm from '../components/FinancialEntryForm';
 import OperationsEntryForm from '../components/OperationsEntryForm';
@@ -35,6 +36,32 @@ export default function DataEntry() {
   const [hasOperationsData, setHasOperationsData] = useState(false);
   const [hasVolumeData, setHasVolumeData] = useState(false);
   const [hasNotesData, setHasNotesData] = useState(false);
+
+  const location = useLocation();
+
+  // Handle navigation from dashboard
+  useEffect(() => {
+    if (location.state) {
+      const { officeId, month, year } = location.state as {
+        officeId?: number;
+        month?: number;
+        year?: number;
+      };
+      
+      if (officeId !== undefined) {
+        setSelectedOffice(officeId);
+      }
+      if (month !== undefined) {
+        setSelectedMonth(month);
+      }
+      if (year !== undefined) {
+        setSelectedYear(year);
+      }
+      
+      // Clear the location state after using it
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleImport = async (importType: 'offices' | 'staff' | 'contacts') => {
     setImporting(importType);

@@ -54,6 +54,7 @@ fn main() {
             commands::get_previous_month_volume,
             commands::save_note,
             commands::get_notes,
+            commands::get_dashboard_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

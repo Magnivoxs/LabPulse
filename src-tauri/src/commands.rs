@@ -493,3 +493,154 @@ pub fn get_notes(
     }
 }
 
+// Dashboard office summary structure
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OfficeSummary {
+    pub office_id: i64,
+    pub office_name: String,
+    pub model: String,
+    pub dfo: Option<String>,
+    pub latest_month: Option<i32>,
+    pub latest_year: Option<i32>,
+    pub revenue: Option<f64>,
+    pub lab_exp_percent: Option<f64>,
+    pub personnel_percent: Option<f64>,
+    pub overtime_percent: Option<f64>,
+    pub backlog_count: Option<i32>,
+    pub has_financial: bool,
+    pub has_operations: bool,
+    pub has_volume: bool,
+    pub has_notes: bool,
+}
+
+// Get dashboard data for all offices
+#[tauri::command]
+pub fn get_dashboard_data(
+    db: State<DbConnection>,
+    year: i32,
+    month: i32,
+) -> Result<Vec<OfficeSummary>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Get all offices
+    let mut stmt = conn.prepare(
+        "SELECT office_id, office_name, model, dfo FROM offices ORDER BY office_id"
+    ).map_err(|e| e.to_string())?;
+    
+    let offices = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?,
+        ))
+    }).map_err(|e| e.to_string())?;
+    
+    let mut summaries = Vec::new();
+    
+    for office in offices {
+        let (office_id, office_name, model, dfo) = office.map_err(|e| e.to_string())?;
+        
+        // Get financial data
+        let financial_result = conn.query_row(
+            "SELECT revenue, lab_exp_with_outside, personnel_exp, overtime_exp
+             FROM monthly_financials
+             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+            params![office_id, year, month],
+            |row| {
+                Ok((
+                    row.get::<_, f64>(0)?,
+                    row.get::<_, f64>(1)?,
+                    row.get::<_, f64>(2)?,
+                    row.get::<_, f64>(3)?,
+                ))
+            },
+        );
+        
+        let (revenue, lab_exp, personnel_exp, overtime_exp, has_financial) = match financial_result {
+            Ok((rev, lab, pers, ot)) => (Some(rev), Some(lab), Some(pers), Some(ot), true),
+            Err(_) => (None, None, None, None, false),
+        };
+        
+        // Calculate percentages
+        let lab_exp_percent = if let (Some(rev), Some(lab)) = (revenue, lab_exp) {
+            if rev > 0.0 { Some((lab / rev) * 100.0) } else { None }
+        } else { None };
+        
+        let personnel_percent = if let (Some(rev), Some(pers)) = (revenue, personnel_exp) {
+            if rev > 0.0 { Some((pers / rev) * 100.0) } else { None }
+        } else { None };
+        
+        let overtime_percent = if let (Some(rev), Some(ot)) = (revenue, overtime_exp) {
+            if rev > 0.0 { Some((ot / rev) * 100.0) } else { None }
+        } else { None };
+        
+        // Get operations data
+        let operations_result = conn.query_row(
+            "SELECT backlog_case_count FROM monthly_ops
+             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+            params![office_id, year, month],
+            |row| row.get::<_, i32>(0),
+        );
+        
+        let (backlog_count, has_operations) = match operations_result {
+            Ok(count) => (Some(count), true),
+            Err(_) => (None, false),
+        };
+        
+        // Check for volume data
+        let has_volume = conn.query_row(
+            "SELECT 1 FROM monthly_volume
+             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+            params![office_id, year, month],
+            |_row| Ok(true),
+        ).unwrap_or(false);
+        
+        // Check for notes
+        let has_notes = conn.query_row(
+            "SELECT 1 FROM notes_actions
+             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+            params![office_id, year, month],
+            |_row| Ok(true),
+        ).unwrap_or(false);
+        
+        // Determine latest month with any data
+        let latest_data = conn.query_row(
+            "SELECT year, month FROM (
+                SELECT year, month FROM monthly_financials WHERE office_id = ?1
+                UNION
+                SELECT year, month FROM monthly_ops WHERE office_id = ?1
+                UNION
+                SELECT year, month FROM monthly_volume WHERE office_id = ?1
+             ) ORDER BY year DESC, month DESC LIMIT 1",
+            params![office_id],
+            |row| Ok((row.get::<_, i32>(0)?, row.get::<_, i32>(1)?)),
+        );
+        
+        let (latest_year, latest_month) = match latest_data {
+            Ok((y, m)) => (Some(y), Some(m)),
+            Err(_) => (None, None),
+        };
+        
+        summaries.push(OfficeSummary {
+            office_id,
+            office_name,
+            model,
+            dfo,
+            latest_month,
+            latest_year,
+            revenue,
+            lab_exp_percent,
+            personnel_percent,
+            overtime_percent,
+            backlog_count,
+            has_financial,
+            has_operations,
+            has_volume,
+            has_notes,
+        });
+    }
+    
+    Ok(summaries)
+}
+
