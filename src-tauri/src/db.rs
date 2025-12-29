@@ -149,6 +149,40 @@ fn run_migrations(conn: &Connection) -> Result<()> {
         [],
     )?;
     
+    // Create weekly_volume table for detailed weekly tracking
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS weekly_volume (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            office_id INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            week_number INTEGER NOT NULL CHECK(week_number BETWEEN 1 AND 53),
+            lab_setups INTEGER NOT NULL DEFAULT 0,
+            lab_fixed_cases INTEGER NOT NULL DEFAULT 0,
+            lab_over_denture INTEGER NOT NULL DEFAULT 0,
+            lab_processes INTEGER NOT NULL DEFAULT 0,
+            lab_finishes INTEGER NOT NULL DEFAULT 0,
+            clinic_wax_tryin INTEGER NOT NULL DEFAULT 0,
+            clinic_delivery INTEGER NOT NULL DEFAULT 0,
+            clinic_outside_lab INTEGER NOT NULL DEFAULT 0,
+            clinic_on_hold INTEGER NOT NULL DEFAULT 0,
+            immediate_units INTEGER NOT NULL DEFAULT 0,
+            economy_units INTEGER NOT NULL DEFAULT 0,
+            economy_plus_units INTEGER NOT NULL DEFAULT 0,
+            premium_units INTEGER NOT NULL DEFAULT 0,
+            ultimate_units INTEGER NOT NULL DEFAULT 0,
+            repair_units INTEGER NOT NULL DEFAULT 0,
+            reline_units INTEGER NOT NULL DEFAULT 0,
+            partial_units INTEGER NOT NULL DEFAULT 0,
+            retry_units INTEGER NOT NULL DEFAULT 0,
+            remake_units INTEGER NOT NULL DEFAULT 0,
+            bite_block_units INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(office_id, year, week_number),
+            FOREIGN KEY (office_id) REFERENCES offices(office_id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    
     // Create notes_actions table
     conn.execute(
         "CREATE TABLE IF NOT EXISTS notes_actions (
@@ -213,6 +247,7 @@ fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_financials_office_date ON monthly_financials(office_id, year, month)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ops_office_date ON monthly_ops(office_id, year, month)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_volume_office_date ON monthly_volume(office_id, year, month)", [])?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_weekly_volume_office_date ON weekly_volume(office_id, year, week_number)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_notes_office_date ON notes_actions(office_id, year, month)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_office_date ON alerts(office_id, year, month)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_dismissed ON alerts(is_dismissed)", [])?;

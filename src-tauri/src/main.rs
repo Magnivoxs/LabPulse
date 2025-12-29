@@ -44,6 +44,7 @@ fn main() {
             commands::import_staff_file,
             commands::import_contacts_file,
             commands::import_bulk_financials,
+            commands::import_bulk_weekly_volume,
             commands::save_financial_data,
             commands::get_financial_data,
             commands::get_previous_month_financial,

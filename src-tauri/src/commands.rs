@@ -930,3 +930,292 @@ pub fn import_bulk_financials(
     })
 }
 
+// Bulk import weekly volume data from Excel
+#[tauri::command]
+pub fn import_bulk_weekly_volume(
+    db: State<DbConnection>,
+    file_path: String,
+) -> Result<ImportSummary, String> {
+    use calamine::{open_workbook, Reader, Xlsx, Data};
+    
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Open the Excel file
+    let mut workbook: Xlsx<_> = open_workbook(&file_path)
+        .map_err(|e| format!("Failed to open Excel file: {}", e))?;
+    
+    // Get the first sheet (Sheet1)
+    let sheet = workbook
+        .worksheet_range_at(0)
+        .ok_or("No worksheets found in file")?
+        .map_err(|e| format!("Failed to read sheet: {}", e))?;
+    
+    let mut rows_processed = 0;
+    let mut weekly_inserted = 0;
+    let mut weekly_skipped = 0;
+    let mut monthly_updated = 0;
+    let mut warnings = Vec::new();
+    
+    // Helper function to get integer from cell
+    let get_i64 = |data: &Data| -> Option<i64> {
+        match data {
+            Data::Int(i) => Some(*i),
+            Data::Float(f) => Some(*f as i64),
+            Data::String(s) => s.parse::<i64>().ok(),
+            Data::Bool(b) => Some(if *b { 1 } else { 0 }),
+            _ => None,
+        }
+    };
+    
+    // Skip header row (row 0), start from row 1
+    for (idx, row) in sheet.rows().enumerate().skip(1) {
+        rows_processed += 1;
+        
+        // Parse row data based on column positions
+        // Processed format: Column 0: office_id, Column 1: year, Column 2: month, Column 3: week_number
+        let office_id = match row.get(0).and_then(get_i64) {
+            Some(id) => id,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid office ID", idx + 1));
+                continue;
+            }
+        };
+
+        let year = match row.get(1).and_then(get_i64) {
+            Some(y) => y as i32,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid year", idx + 1));
+                continue;
+            }
+        };
+
+        // Month is in column 2 but we'll calculate it from week_number, so just read week_number
+        let week_number = match row.get(3).and_then(get_i64) {
+            Some(w) => w as i32,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid week number", idx + 1));
+                continue;
+            }
+        };
+
+        if week_number < 1 || week_number > 53 {
+            warnings.push(format!("Row {}: Invalid week number {} (must be 1-53)", idx + 1, week_number));
+            continue;
+        }
+        
+        // Parse all volume fields - processed file starts at column 6
+        let lab_setups = row.get(6).and_then(get_i64).unwrap_or(0) as i32;
+        let lab_fixed_cases = row.get(7).and_then(get_i64).unwrap_or(0) as i32;
+        let lab_over_denture = row.get(8).and_then(get_i64).unwrap_or(0) as i32;
+        let lab_processes = row.get(9).and_then(get_i64).unwrap_or(0) as i32;
+        let lab_finishes = row.get(10).and_then(get_i64).unwrap_or(0) as i32;
+        
+        let clinic_wax_tryin = row.get(11).and_then(get_i64).unwrap_or(0) as i32;
+        let clinic_delivery = row.get(12).and_then(get_i64).unwrap_or(0) as i32;
+        let clinic_outside_lab = row.get(13).and_then(get_i64).unwrap_or(0) as i32;
+        let clinic_on_hold = row.get(14).and_then(get_i64).unwrap_or(0) as i32;
+        
+        let immediate_units = row.get(15).and_then(get_i64).unwrap_or(0) as i32;
+        let economy_units = row.get(16).and_then(get_i64).unwrap_or(0) as i32;
+        let economy_plus_units = row.get(17).and_then(get_i64).unwrap_or(0) as i32;
+        let premium_units = row.get(18).and_then(get_i64).unwrap_or(0) as i32;
+        let ultimate_units = row.get(19).and_then(get_i64).unwrap_or(0) as i32;
+        let repair_units = row.get(20).and_then(get_i64).unwrap_or(0) as i32;
+        let reline_units = row.get(21).and_then(get_i64).unwrap_or(0) as i32;
+        let partial_units = row.get(22).and_then(get_i64).unwrap_or(0) as i32;
+        let retry_units = row.get(23).and_then(get_i64).unwrap_or(0) as i32;
+        let remake_units = row.get(24).and_then(get_i64).unwrap_or(0) as i32;
+        let bite_block_units = row.get(25).and_then(get_i64).unwrap_or(0) as i32;
+        
+        // Check if weekly record already exists
+        let exists = conn.query_row(
+            "SELECT COUNT(*) FROM weekly_volume WHERE office_id = ?1 AND year = ?2 AND week_number = ?3",
+            params![office_id, year, week_number],
+            |row| row.get::<_, i64>(0),
+        ).unwrap_or(0) > 0;
+        
+        if exists {
+            weekly_skipped += 1;
+            continue; // Skip duplicate weeks
+        }
+        
+        // Insert weekly record
+        let result = conn.execute(
+            "INSERT INTO weekly_volume (
+                office_id, year, week_number,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
+            params![
+                office_id, year, week_number,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units
+            ],
+        );
+        
+        match result {
+            Ok(_) => weekly_inserted += 1,
+            Err(e) => {
+                warnings.push(format!("Row {}: Failed to insert weekly record - {}", idx + 1, e));
+                continue;
+            }
+        }
+    }
+    
+    // After importing weekly data, aggregate to monthly
+    // This recalculates monthly_volume from all weekly records
+    monthly_updated = aggregate_weekly_to_monthly(&conn)?;
+    
+    // Log the import
+    conn.execute(
+        "INSERT INTO import_log (import_type, filename, rows_processed, rows_inserted, rows_updated)
+         VALUES ('weekly_volume', ?1, ?2, ?3, ?4)",
+        params![
+            file_path.split('\\').last().or_else(|| file_path.split('/').last()).unwrap_or(&file_path),
+            rows_processed,
+            weekly_inserted,
+            monthly_updated
+        ],
+    ).map_err(|e| format!("Failed to log import: {}", e))?;
+    
+    Ok(ImportSummary {
+        filename: file_path.split('\\').last().or_else(|| file_path.split('/').last()).unwrap_or(&file_path).to_string(),
+        rows_processed,
+        rows_inserted: weekly_inserted,
+        rows_updated: monthly_updated as usize,
+        warnings,
+    })
+}
+
+// Helper function to aggregate weekly data to monthly
+fn aggregate_weekly_to_monthly(conn: &Connection) -> Result<i32, String> {
+    // Get all unique office/year/month combinations from weekly data
+    let mut stmt = conn.prepare(
+        "SELECT DISTINCT office_id, year,
+                CASE 
+                    WHEN week_number <= 4 THEN 1
+                    WHEN week_number <= 8 THEN 2
+                    WHEN week_number <= 13 THEN 3
+                    WHEN week_number <= 17 THEN 4
+                    WHEN week_number <= 22 THEN 5
+                    WHEN week_number <= 26 THEN 6
+                    WHEN week_number <= 30 THEN 7
+                    WHEN week_number <= 35 THEN 8
+                    WHEN week_number <= 39 THEN 9
+                    WHEN week_number <= 43 THEN 10
+                    WHEN week_number <= 48 THEN 11
+                    ELSE 12
+                END as month
+         FROM weekly_volume
+         ORDER BY office_id, year, month"
+    ).map_err(|e| e.to_string())?;
+    
+    let office_months: Vec<(i64, i32, i32)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    
+    let mut updated = 0;
+    
+    for (office_id, year, month) in office_months {
+        // Calculate week range for this month
+        let (week_start, week_end) = match month {
+            1 => (1, 4), 2 => (5, 8), 3 => (9, 13), 4 => (14, 17),
+            5 => (18, 22), 6 => (23, 26), 7 => (27, 30), 8 => (31, 35),
+            9 => (36, 39), 10 => (40, 43), 11 => (44, 48), 12 => (49, 53),
+            _ => continue,
+        };
+        
+        // Average all weekly records for this month
+        let monthly_data = conn.query_row(
+            "SELECT 
+                COALESCE(AVG(lab_setups), 0), COALESCE(AVG(lab_fixed_cases), 0), COALESCE(AVG(lab_over_denture), 0), 
+                COALESCE(AVG(lab_processes), 0), COALESCE(AVG(lab_finishes), 0),
+                COALESCE(AVG(clinic_wax_tryin), 0), COALESCE(AVG(clinic_delivery), 0), COALESCE(AVG(clinic_outside_lab), 0), COALESCE(AVG(clinic_on_hold), 0),
+                COALESCE(AVG(immediate_units), 0), COALESCE(AVG(economy_units), 0), COALESCE(AVG(economy_plus_units), 0), 
+                COALESCE(AVG(premium_units), 0), COALESCE(AVG(ultimate_units), 0), COALESCE(AVG(repair_units), 0), 
+                COALESCE(AVG(reline_units), 0), COALESCE(AVG(partial_units), 0), COALESCE(AVG(retry_units), 0), 
+                COALESCE(AVG(remake_units), 0), COALESCE(AVG(bite_block_units), 0)
+             FROM weekly_volume
+             WHERE office_id = ?1 AND year = ?2 AND week_number BETWEEN ?3 AND ?4",
+            params![office_id, year, week_start, week_end],
+            |row| {
+                Ok((
+                    row.get::<_, f64>(0)?.round() as i32, row.get::<_, f64>(1)?.round() as i32, row.get::<_, f64>(2)?.round() as i32,
+                    row.get::<_, f64>(3)?.round() as i32, row.get::<_, f64>(4)?.round() as i32, row.get::<_, f64>(5)?.round() as i32,
+                    row.get::<_, f64>(6)?.round() as i32, row.get::<_, f64>(7)?.round() as i32, row.get::<_, f64>(8)?.round() as i32,
+                    row.get::<_, f64>(9)?.round() as i32, row.get::<_, f64>(10)?.round() as i32, row.get::<_, f64>(11)?.round() as i32,
+                    row.get::<_, f64>(12)?.round() as i32, row.get::<_, f64>(13)?.round() as i32, row.get::<_, f64>(14)?.round() as i32,
+                    row.get::<_, f64>(15)?.round() as i32, row.get::<_, f64>(16)?.round() as i32, row.get::<_, f64>(17)?.round() as i32,
+                    row.get::<_, f64>(18)?.round() as i32, row.get::<_, f64>(19)?.round() as i32,
+                ))
+            },
+        ).map_err(|e| e.to_string())?;
+        
+        let (lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+             clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+             immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+             repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units) = monthly_data;
+        
+        // Calculate totals
+        let backlog_in_lab = lab_setups + lab_fixed_cases + lab_over_denture + lab_processes + lab_finishes;
+        let backlog_in_clinic = clinic_wax_tryin + clinic_delivery + clinic_outside_lab + clinic_on_hold;
+        let total_weekly_units = immediate_units + economy_units + economy_plus_units + premium_units + 
+                                 ultimate_units + repair_units + reline_units + partial_units + 
+                                 retry_units + remake_units + bite_block_units;
+        
+        // Insert or update monthly record
+        conn.execute(
+            "INSERT INTO monthly_volume (
+                office_id, year, month, backlog_in_lab, backlog_in_clinic,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+                total_weekly_units
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+            ON CONFLICT(office_id, year, month) DO UPDATE SET
+                backlog_in_lab = excluded.backlog_in_lab,
+                backlog_in_clinic = excluded.backlog_in_clinic,
+                lab_setups = excluded.lab_setups,
+                lab_fixed_cases = excluded.lab_fixed_cases,
+                lab_over_denture = excluded.lab_over_denture,
+                lab_processes = excluded.lab_processes,
+                lab_finishes = excluded.lab_finishes,
+                clinic_wax_tryin = excluded.clinic_wax_tryin,
+                clinic_delivery = excluded.clinic_delivery,
+                clinic_outside_lab = excluded.clinic_outside_lab,
+                clinic_on_hold = excluded.clinic_on_hold,
+                immediate_units = excluded.immediate_units,
+                economy_units = excluded.economy_units,
+                economy_plus_units = excluded.economy_plus_units,
+                premium_units = excluded.premium_units,
+                ultimate_units = excluded.ultimate_units,
+                repair_units = excluded.repair_units,
+                reline_units = excluded.reline_units,
+                partial_units = excluded.partial_units,
+                retry_units = excluded.retry_units,
+                remake_units = excluded.remake_units,
+                bite_block_units = excluded.bite_block_units,
+                total_weekly_units = excluded.total_weekly_units",
+            params![
+                office_id, year, month, backlog_in_lab, backlog_in_clinic,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+                total_weekly_units
+            ],
+        ).map_err(|e| e.to_string())?;
+        
+        updated += 1;
+    }
+    
+    Ok(updated)
+}
+

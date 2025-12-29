@@ -63,7 +63,7 @@ export default function DataEntry() {
     }
   }, [location.state]);
 
-  const handleImport = async (importType: 'offices' | 'staff' | 'contacts' | 'bulk_financials') => {
+  const handleImport = async (importType: 'offices' | 'staff' | 'contacts' | 'bulk_financials' | 'bulk_weekly_volume') => {
     setImporting(importType);
     setLastImport(null);
 
@@ -77,6 +77,8 @@ export default function DataEntry() {
         directory: false,
         title: importType === 'bulk_financials' 
           ? 'Select labpulse_import.xlsx file' 
+          : importType === 'bulk_weekly_volume'
+          ? 'Select backlog tracker file'
           : `Select ${importType} XLSX file`
       });
 
@@ -92,6 +94,8 @@ export default function DataEntry() {
         result = await invoke<ImportSummary>('import_staff_file', { filePath: selected });
       } else if (importType === 'contacts') {
         result = await invoke<ImportSummary>('import_contacts_file', { filePath: selected });
+      } else if (importType === 'bulk_weekly_volume') {
+        result = await invoke<ImportSummary>('import_bulk_weekly_volume', { filePath: selected });
       } else {
         result = await invoke<ImportSummary>('import_bulk_financials', { filePath: selected });
       }
@@ -133,7 +137,7 @@ export default function DataEntry() {
               Import office list, staff roster, and contact information from Excel files.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Office List</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -187,6 +191,20 @@ export default function DataEntry() {
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
                 >
                   {importing === 'bulk_financials' ? 'Importing...' : 'Import Financials'}
+                </button>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Bulk Weekly Volume</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Import weekly volume data from backlog tracker.
+                </p>
+                <button
+                  onClick={() => handleImport('bulk_weekly_volume')}
+                  disabled={importing !== ''}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-400 transition-colors"
+                >
+                  {importing === 'bulk_weekly_volume' ? 'Importing...' : 'Import Weekly Volume'}
                 </button>
               </div>
             </div>
