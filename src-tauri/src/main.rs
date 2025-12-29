@@ -58,6 +58,7 @@ fn main() {
             commands::save_note,
             commands::get_notes,
             commands::get_dashboard_data,
+            commands::get_office_rankings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

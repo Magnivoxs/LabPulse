@@ -3,6 +3,7 @@ use rusqlite::Connection;
 use rusqlite::params;
 use tauri::State;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::sync::Mutex;
 
 pub struct DbConnection(pub Mutex<Connection>);
@@ -1430,5 +1431,216 @@ fn aggregate_weekly_to_monthly(conn: &Connection) -> Result<i32, String> {
     }
     
     Ok(updated)
+}
+
+// Get rankings for offices based on metric and time period
+#[tauri::command]
+pub fn get_office_rankings(
+    db: State<DbConnection>,
+    metric: String,
+    start_year: i32,
+    start_month: i32,
+    end_year: i32,
+    end_month: i32,
+) -> Result<Vec<serde_json::Value>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Check if single month or multi-month period
+    let is_single_month = start_year == end_year && start_month == end_month;
+    
+    // Get all offices first
+    let mut stmt = conn.prepare(
+        "SELECT office_id, office_name, address, model, dfo FROM offices ORDER BY office_id"
+    ).map_err(|e| e.to_string())?;
+    
+    let offices: Vec<(i64, String, String, String, String)> = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    
+    let mut rankings = Vec::new();
+    
+    for (office_id, office_name, address, _model, dfo) in offices {
+        let value: Option<f64> = match metric.as_str() {
+            "revenue" => {
+                if is_single_month {
+                    conn.query_row(
+                        "SELECT revenue FROM monthly_financials WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| row.get(0),
+                    ).ok()
+                } else {
+                    conn.query_row(
+                        "SELECT SUM(revenue) FROM monthly_financials 
+                         WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                        params![office_id, start_year, start_month, end_year, end_month],
+                        |row| row.get(0),
+                    ).ok()
+                }
+            },
+            
+            "lab_expense_percent" => {
+                if is_single_month {
+                    // Calculate percentage for single month
+                    let result = conn.query_row(
+                        "SELECT revenue, lab_exp_with_outside FROM monthly_financials 
+                         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| Ok((row.get::<_, Option<f64>>(0)?, row.get::<_, Option<f64>>(1)?)),
+                    ).ok();
+                    
+                    if let Some((Some(rev), Some(lab))) = result {
+                        if rev > 0.0 {
+                            Some((lab / rev) * 100.0)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None // No percentages for multi-month
+                }
+            },
+            
+            "personnel_expense_percent" => {
+                if is_single_month {
+                    let result = conn.query_row(
+                        "SELECT revenue, personnel_exp FROM monthly_financials 
+                         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| Ok((row.get::<_, Option<f64>>(0)?, row.get::<_, Option<f64>>(1)?)),
+                    ).ok();
+                    
+                    if let Some((Some(rev), Some(pers))) = result {
+                        if rev > 0.0 {
+                            Some((pers / rev) * 100.0)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None // No percentages for multi-month
+                }
+            },
+            
+            "total_weekly_units" => {
+                if is_single_month {
+                    conn.query_row(
+                        "SELECT AVG(total_weekly_units) FROM monthly_volume 
+                         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| row.get(0),
+                    ).ok()
+                } else {
+                    conn.query_row(
+                        "SELECT AVG(total_weekly_units) FROM monthly_volume 
+                         WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                        params![office_id, start_year, start_month, end_year, end_month],
+                        |row| row.get(0),
+                    ).ok()
+                }
+            },
+            
+            "backlog_in_lab" => {
+                if is_single_month {
+                    conn.query_row(
+                        "SELECT AVG(backlog_in_lab) FROM monthly_volume 
+                         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| row.get(0),
+                    ).ok()
+                } else {
+                    conn.query_row(
+                        "SELECT AVG(backlog_in_lab) FROM monthly_volume 
+                         WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                        params![office_id, start_year, start_month, end_year, end_month],
+                        |row| row.get(0),
+                    ).ok()
+                }
+            },
+            
+            "backlog_in_clinic" => {
+                if is_single_month {
+                    conn.query_row(
+                        "SELECT AVG(backlog_in_clinic) FROM monthly_volume 
+                         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+                        params![office_id, start_year, start_month],
+                        |row| row.get(0),
+                    ).ok()
+                } else {
+                    conn.query_row(
+                        "SELECT AVG(backlog_in_clinic) FROM monthly_volume 
+                         WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                        params![office_id, start_year, start_month, end_year, end_month],
+                        |row| row.get(0),
+                    ).ok()
+                }
+            },
+            
+            "data_completeness" => {
+                // Calculate data completeness percentage
+                let period_months = if is_single_month {
+                    1
+                } else {
+                    // Calculate number of months in range
+                    let mut count = 0;
+                    let mut y = start_year;
+                    let mut m = start_month;
+                    while y < end_year || (y == end_year && m <= end_month) {
+                        count += 1;
+                        m += 1;
+                        if m > 12 {
+                            m = 1;
+                            y += 1;
+                        }
+                    }
+                    count
+                };
+                
+                let financial_count: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM monthly_financials 
+                     WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                    params![office_id, start_year, start_month, end_year, end_month],
+                    |row| row.get(0),
+                ).unwrap_or(0);
+                
+                let volume_count: i64 = conn.query_row(
+                    "SELECT COUNT(*) FROM monthly_volume 
+                     WHERE office_id = ?1 AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                    params![office_id, start_year, start_month, end_year, end_month],
+                    |row| row.get(0),
+                ).unwrap_or(0);
+                
+                let total_possible = period_months * 2; // 2 data types (financial + volume)
+                let total_actual = financial_count + volume_count;
+                
+                Some((total_actual as f64 / total_possible as f64) * 100.0)
+            },
+            
+            _ => None,
+        };
+        
+        rankings.push(serde_json::json!({
+            "office_id": office_id,
+            "office_name": office_name,
+            "address": address,
+            "dfo": dfo,
+            "value": value,
+        }));
+    }
+    
+    Ok(rankings)
 }
 
