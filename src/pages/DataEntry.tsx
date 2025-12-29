@@ -63,7 +63,7 @@ export default function DataEntry() {
     }
   }, [location.state]);
 
-  const handleImport = async (importType: 'offices' | 'staff' | 'contacts') => {
+  const handleImport = async (importType: 'offices' | 'staff' | 'contacts' | 'bulk_financials') => {
     setImporting(importType);
     setLastImport(null);
 
@@ -75,7 +75,9 @@ export default function DataEntry() {
         }],
         multiple: false,
         directory: false,
-        title: `Select ${importType} XLSX file`
+        title: importType === 'bulk_financials' 
+          ? 'Select labpulse_import.xlsx file' 
+          : `Select ${importType} XLSX file`
       });
 
       if (!selected || selected === null) {
@@ -88,8 +90,10 @@ export default function DataEntry() {
         result = await invoke<ImportSummary>('import_offices_file', { filePath: selected });
       } else if (importType === 'staff') {
         result = await invoke<ImportSummary>('import_staff_file', { filePath: selected });
-      } else {
+      } else if (importType === 'contacts') {
         result = await invoke<ImportSummary>('import_contacts_file', { filePath: selected });
+      } else {
+        result = await invoke<ImportSummary>('import_bulk_financials', { filePath: selected });
       }
 
       setLastImport(result);
@@ -129,7 +133,7 @@ export default function DataEntry() {
               Import office list, staff roster, and contact information from Excel files.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="border border-gray-200 rounded-lg p-4">
                 <h3 className="font-semibold mb-2">Office List</h3>
                 <p className="text-sm text-gray-600 mb-4">
@@ -169,6 +173,20 @@ export default function DataEntry() {
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
                 >
                   {importing === 'contacts' ? 'Importing...' : 'Import Contacts'}
+                </button>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="font-semibold mb-2">Bulk Financial Data</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Import monthly financial data from Excel file.
+                </p>
+                <button
+                  onClick={() => handleImport('bulk_financials')}
+                  disabled={importing !== ''}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+                >
+                  {importing === 'bulk_financials' ? 'Importing...' : 'Import Financials'}
                 </button>
               </div>
             </div>

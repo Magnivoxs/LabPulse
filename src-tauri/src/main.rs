@@ -43,6 +43,7 @@ fn main() {
             commands::import_offices_file,
             commands::import_staff_file,
             commands::import_contacts_file,
+            commands::import_bulk_financials,
             commands::save_financial_data,
             commands::get_financial_data,
             commands::get_previous_month_financial,

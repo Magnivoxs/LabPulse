@@ -339,6 +339,26 @@ pub struct VolumeData {
     pub month: i32,
     pub backlog_in_lab: i32,
     pub backlog_in_clinic: i32,
+    pub lab_setups: i32,
+    pub lab_fixed_cases: i32,
+    pub lab_over_denture: i32,
+    pub lab_processes: i32,
+    pub lab_finishes: i32,
+    pub clinic_wax_tryin: i32,
+    pub clinic_delivery: i32,
+    pub clinic_outside_lab: i32,
+    pub clinic_on_hold: i32,
+    pub immediate_units: i32,
+    pub economy_units: i32,
+    pub economy_plus_units: i32,
+    pub premium_units: i32,
+    pub ultimate_units: i32,
+    pub repair_units: i32,
+    pub reline_units: i32,
+    pub partial_units: i32,
+    pub retry_units: i32,
+    pub remake_units: i32,
+    pub bite_block_units: i32,
     pub total_weekly_units: i32,
 }
 
@@ -351,19 +371,71 @@ pub fn save_volume_data(
     month: i32,
     backlog_in_lab: i32,
     backlog_in_clinic: i32,
+    lab_setups: i32,
+    lab_fixed_cases: i32,
+    lab_over_denture: i32,
+    lab_processes: i32,
+    lab_finishes: i32,
+    clinic_wax_tryin: i32,
+    clinic_delivery: i32,
+    clinic_outside_lab: i32,
+    clinic_on_hold: i32,
+    immediate_units: i32,
+    economy_units: i32,
+    economy_plus_units: i32,
+    premium_units: i32,
+    ultimate_units: i32,
+    repair_units: i32,
+    reline_units: i32,
+    partial_units: i32,
+    retry_units: i32,
+    remake_units: i32,
+    bite_block_units: i32,
     total_weekly_units: i32,
 ) -> Result<String, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     
     conn.execute(
         "INSERT INTO monthly_volume (
-            office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            office_id, year, month, backlog_in_lab, backlog_in_clinic,
+            lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+            clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+            immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+            repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+            total_weekly_units
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
         ON CONFLICT(office_id, year, month) DO UPDATE SET
             backlog_in_lab = excluded.backlog_in_lab,
             backlog_in_clinic = excluded.backlog_in_clinic,
+            lab_setups = excluded.lab_setups,
+            lab_fixed_cases = excluded.lab_fixed_cases,
+            lab_over_denture = excluded.lab_over_denture,
+            lab_processes = excluded.lab_processes,
+            lab_finishes = excluded.lab_finishes,
+            clinic_wax_tryin = excluded.clinic_wax_tryin,
+            clinic_delivery = excluded.clinic_delivery,
+            clinic_outside_lab = excluded.clinic_outside_lab,
+            clinic_on_hold = excluded.clinic_on_hold,
+            immediate_units = excluded.immediate_units,
+            economy_units = excluded.economy_units,
+            economy_plus_units = excluded.economy_plus_units,
+            premium_units = excluded.premium_units,
+            ultimate_units = excluded.ultimate_units,
+            repair_units = excluded.repair_units,
+            reline_units = excluded.reline_units,
+            partial_units = excluded.partial_units,
+            retry_units = excluded.retry_units,
+            remake_units = excluded.remake_units,
+            bite_block_units = excluded.bite_block_units,
             total_weekly_units = excluded.total_weekly_units",
-        params![office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units],
+        params![
+            office_id, year, month, backlog_in_lab, backlog_in_clinic,
+            lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+            clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+            immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+            repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+            total_weekly_units
+        ],
     ).map_err(|e| e.to_string())?;
     
     Ok("Volume data saved successfully".to_string())
@@ -380,7 +452,12 @@ pub fn get_volume_data(
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     
     let result = conn.query_row(
-        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
+        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+                total_weekly_units
          FROM monthly_volume
          WHERE office_id = ?1 AND year = ?2 AND month = ?3",
         params![office_id, year, month],
@@ -392,7 +469,27 @@ pub fn get_volume_data(
                 month: row.get(3)?,
                 backlog_in_lab: row.get(4)?,
                 backlog_in_clinic: row.get(5)?,
-                total_weekly_units: row.get(6)?,
+                lab_setups: row.get(6)?,
+                lab_fixed_cases: row.get(7)?,
+                lab_over_denture: row.get(8)?,
+                lab_processes: row.get(9)?,
+                lab_finishes: row.get(10)?,
+                clinic_wax_tryin: row.get(11)?,
+                clinic_delivery: row.get(12)?,
+                clinic_outside_lab: row.get(13)?,
+                clinic_on_hold: row.get(14)?,
+                immediate_units: row.get(15)?,
+                economy_units: row.get(16)?,
+                economy_plus_units: row.get(17)?,
+                premium_units: row.get(18)?,
+                ultimate_units: row.get(19)?,
+                repair_units: row.get(20)?,
+                reline_units: row.get(21)?,
+                partial_units: row.get(22)?,
+                retry_units: row.get(23)?,
+                remake_units: row.get(24)?,
+                bite_block_units: row.get(25)?,
+                total_weekly_units: row.get(26)?,
             })
         },
     );
@@ -422,7 +519,12 @@ pub fn get_previous_month_volume(
     };
     
     let result = conn.query_row(
-        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic, total_weekly_units
+        "SELECT id, office_id, year, month, backlog_in_lab, backlog_in_clinic,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units,
+                total_weekly_units
          FROM monthly_volume
          WHERE office_id = ?1 AND year = ?2 AND month = ?3",
         params![office_id, prev_year, prev_month],
@@ -434,7 +536,27 @@ pub fn get_previous_month_volume(
                 month: row.get(3)?,
                 backlog_in_lab: row.get(4)?,
                 backlog_in_clinic: row.get(5)?,
-                total_weekly_units: row.get(6)?,
+                lab_setups: row.get(6)?,
+                lab_fixed_cases: row.get(7)?,
+                lab_over_denture: row.get(8)?,
+                lab_processes: row.get(9)?,
+                lab_finishes: row.get(10)?,
+                clinic_wax_tryin: row.get(11)?,
+                clinic_delivery: row.get(12)?,
+                clinic_outside_lab: row.get(13)?,
+                clinic_on_hold: row.get(14)?,
+                immediate_units: row.get(15)?,
+                economy_units: row.get(16)?,
+                economy_plus_units: row.get(17)?,
+                premium_units: row.get(18)?,
+                ultimate_units: row.get(19)?,
+                repair_units: row.get(20)?,
+                reline_units: row.get(21)?,
+                partial_units: row.get(22)?,
+                retry_units: row.get(23)?,
+                remake_units: row.get(24)?,
+                bite_block_units: row.get(25)?,
+                total_weekly_units: row.get(26)?,
             })
         },
     );
@@ -642,5 +764,169 @@ pub fn get_dashboard_data(
     }
     
     Ok(summaries)
+}
+
+// Bulk import financial data from Excel
+#[tauri::command]
+pub fn import_bulk_financials(
+    db: State<DbConnection>,
+    file_path: String,
+) -> Result<ImportSummary, String> {
+    use calamine::{open_workbook, Reader, Xlsx, Data};
+    
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Open the Excel file
+    let mut workbook: Xlsx<_> = open_workbook(&file_path)
+        .map_err(|e| format!("Failed to open Excel file: {}", e))?;
+    
+    // Get the monthly_financials sheet
+    let sheet = workbook
+        .worksheet_range("monthly_financials")
+        .map_err(|e| format!("Failed to read sheet 'monthly_financials': {}", e))?;
+    
+    let mut rows_processed = 0;
+    let mut rows_inserted = 0;
+    let mut rows_updated = 0;
+    let mut warnings = Vec::new();
+    
+    // Helper function to get i64 from cell
+    fn get_i64(cell: &Data) -> Option<i64> {
+        match cell {
+            Data::Int(i) => Some(*i),
+            Data::Float(f) => Some(*f as i64),
+            Data::String(s) => s.trim().parse::<i64>().ok(),
+            _ => None,
+        }
+    }
+    
+    // Helper function to get f64 from cell
+    fn get_f64(cell: &Data) -> Option<f64> {
+        match cell {
+            Data::Int(i) => Some(*i as f64),
+            Data::Float(f) => Some(*f),
+            Data::String(s) => s.trim().parse::<f64>().ok(),
+            _ => None,
+        }
+    }
+    
+    // Skip header row, start from row 1
+    for (idx, row) in sheet.rows().enumerate().skip(1) {
+        rows_processed += 1;
+        
+        // Parse row data
+        let office_id = match row.get(0).and_then(|v| get_i64(v)) {
+            Some(id) => id,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid office_id", idx + 2));
+                continue;
+            }
+        };
+        
+        let year = match row.get(1).and_then(|v| get_i64(v)) {
+            Some(y) => y as i32,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid year", idx + 2));
+                continue;
+            }
+        };
+        
+        let month = match row.get(2).and_then(|v| get_i64(v)) {
+            Some(m) => m as i32,
+            None => {
+                warnings.push(format!("Row {}: Missing or invalid month", idx + 2));
+                continue;
+            }
+        };
+        
+        // Validate month range
+        if month < 1 || month > 12 {
+            warnings.push(format!("Row {}: Invalid month {} (must be 1-12)", idx + 2, month));
+            continue;
+        }
+        
+        // Parse financial fields (allow 0 or NULL)
+        let revenue = row.get(3).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let lab_exp_no_outside = row.get(4).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let lab_exp_with_outside = row.get(5).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let teeth_supplies = row.get(6).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let lab_supplies = row.get(7).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let lab_hub = row.get(8).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let lss_expense = row.get(9).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let personnel_exp = row.get(10).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let overtime_exp = row.get(11).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        let bonus_exp = row.get(12).and_then(|v| get_f64(v)).unwrap_or(0.0);
+        // Note: column 13 (outside_lab_spend) is ignored - LabPulse auto-calculates this
+        
+        // Check if record exists
+        let exists = conn.query_row(
+            "SELECT COUNT(*) FROM monthly_financials WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+            params![office_id, year, month],
+            |row| row.get::<_, i64>(0),
+        ).unwrap_or(0) > 0;
+        
+        // Calculate outside_lab_spend (auto-calculated)
+        let outside_lab_spend = lab_exp_with_outside - lab_exp_no_outside;
+        
+        // Insert or update
+        let result = conn.execute(
+            "INSERT INTO monthly_financials (
+                office_id, year, month, revenue, lab_exp_no_outside, lab_exp_with_outside,
+                outside_lab_spend, teeth_supplies, lab_supplies, lab_hub, lss_expense, 
+                personnel_exp, overtime_exp, bonus_exp
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            ON CONFLICT(office_id, year, month) DO UPDATE SET
+                revenue = excluded.revenue,
+                lab_exp_no_outside = excluded.lab_exp_no_outside,
+                lab_exp_with_outside = excluded.lab_exp_with_outside,
+                outside_lab_spend = excluded.outside_lab_spend,
+                teeth_supplies = excluded.teeth_supplies,
+                lab_supplies = excluded.lab_supplies,
+                lab_hub = excluded.lab_hub,
+                lss_expense = excluded.lss_expense,
+                personnel_exp = excluded.personnel_exp,
+                overtime_exp = excluded.overtime_exp,
+                bonus_exp = excluded.bonus_exp,
+                updated_at = CURRENT_TIMESTAMP",
+            params![
+                office_id, year, month, revenue, lab_exp_no_outside, lab_exp_with_outside,
+                outside_lab_spend, teeth_supplies, lab_supplies, lab_hub, lss_expense, 
+                personnel_exp, overtime_exp, bonus_exp
+            ],
+        );
+        
+        match result {
+            Ok(_) => {
+                if exists {
+                    rows_updated += 1;
+                } else {
+                    rows_inserted += 1;
+                }
+            }
+            Err(e) => {
+                warnings.push(format!("Row {}: Failed to import - {}", idx + 2, e));
+            }
+        }
+    }
+    
+    // Log import
+    conn.execute(
+        "INSERT INTO import_log (import_type, filename, rows_processed, rows_inserted, rows_updated, warnings) VALUES ('bulk_financials', ?1, ?2, ?3, ?4, ?5)",
+        params![
+            file_path,
+            rows_processed,
+            rows_inserted,
+            rows_updated,
+            serde_json::to_string(&warnings).unwrap_or_default()
+        ],
+    ).ok(); // Don't fail if logging fails
+    
+    Ok(ImportSummary {
+        filename: file_path.split('\\').last().or_else(|| file_path.split('/').last()).unwrap_or(&file_path).to_string(),
+        rows_processed,
+        rows_inserted,
+        rows_updated,
+        warnings,
+    })
 }
 

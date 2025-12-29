@@ -62,6 +62,26 @@ export interface VolumeData {
   month: number;
   backlog_in_lab: number;
   backlog_in_clinic: number;
+  lab_setups: number;
+  lab_fixed_cases: number;
+  lab_over_denture: number;
+  lab_processes: number;
+  lab_finishes: number;
+  clinic_wax_tryin: number;
+  clinic_delivery: number;
+  clinic_outside_lab: number;
+  clinic_on_hold: number;
+  immediate_units: number;
+  economy_units: number;
+  economy_plus_units: number;
+  premium_units: number;
+  ultimate_units: number;
+  repair_units: number;
+  reline_units: number;
+  partial_units: number;
+  retry_units: number;
+  remake_units: number;
+  bite_block_units: number;
   total_weekly_units: number;
 }
 
