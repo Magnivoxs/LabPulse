@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { VolumeData } from '../types/DataEntry';
+import { VolumeData, WeeklyVolumeData } from '../types/DataEntry';
 
 interface VolumeEntryFormProps {
   officeId: number | null;
@@ -51,12 +51,20 @@ export default function VolumeEntryForm({
   const [showLabBreakdown, setShowLabBreakdown] = useState(false);
   const [showClinicBreakdown, setShowClinicBreakdown] = useState(false);
   const [showUnitBreakdown, setShowUnitBreakdown] = useState(false);
+  
+  // Weekly data state
+  const [weeklyData, setWeeklyData] = useState<WeeklyVolumeData[]>([]);
+  const [showWeeklyLab, setShowWeeklyLab] = useState(false);
+  const [showWeeklyClinic, setShowWeeklyClinic] = useState(false);
+  const [showWeeklyUnits, setShowWeeklyUnits] = useState(false);
+  const [loadingWeekly, setLoadingWeekly] = useState(false);
 
   // Load data when office/month changes
   useEffect(() => {
     if (officeId) {
       loadData();
       loadPreviousMonth();
+      loadWeeklyData();
     }
   }, [officeId, month, year]);
 
@@ -175,6 +183,25 @@ export default function VolumeEntryForm({
     } catch (err) {
       console.error('Failed to load previous month volume data:', err);
       setPreviousMonthData(null);
+    }
+  };
+
+  const loadWeeklyData = async () => {
+    if (!officeId) return;
+    
+    setLoadingWeekly(true);
+    try {
+      const data = await invoke<WeeklyVolumeData[]>('get_weekly_volume_records', {
+        officeId,
+        year,
+        month,
+      });
+      setWeeklyData(data);
+    } catch (err) {
+      console.error('Failed to load weekly volume data:', err);
+      setWeeklyData([]);
+    } finally {
+      setLoadingWeekly(false);
     }
   };
 
@@ -464,6 +491,53 @@ export default function VolumeEntryForm({
                 </div>
               )}
             </div>
+            
+            {/* Weekly Breakdown Table - Lab */}
+            {weeklyData.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <button
+                  onClick={() => setShowWeeklyLab(!showWeeklyLab)}
+                  className="px-4 py-2 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors text-sm font-medium mb-3"
+                >
+                  {showWeeklyLab ? '− Hide Weekly Breakdown' : '+ View Weekly Breakdown'}
+                </button>
+                
+                {showWeeklyLab && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border border-gray-200">
+                      <thead className="bg-blue-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700 border-b">Week</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Set-ups</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Fixed</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Over-Denture</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Processes</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Finishes</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b bg-blue-100">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeklyData.map((week) => {
+                          const weekTotal = week.lab_setups + week.lab_fixed_cases + week.lab_over_denture + 
+                                           week.lab_processes + week.lab_finishes;
+                          return (
+                            <tr key={week.week_number} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 border-b font-medium">Week {week.week_number}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.lab_setups}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.lab_fixed_cases}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.lab_over_denture}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.lab_processes}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.lab_finishes}</td>
+                              <td className="px-3 py-2 border-b text-right font-bold bg-blue-50">{weekTotal}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -565,6 +639,51 @@ export default function VolumeEntryForm({
                 </div>
               )}
             </div>
+            
+            {/* Weekly Breakdown Table - Clinic */}
+            {weeklyData.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <button
+                  onClick={() => setShowWeeklyClinic(!showWeeklyClinic)}
+                  className="px-4 py-2 bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors text-sm font-medium mb-3"
+                >
+                  {showWeeklyClinic ? '− Hide Weekly Breakdown' : '+ View Weekly Breakdown'}
+                </button>
+                
+                {showWeeklyClinic && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border border-gray-200">
+                      <thead className="bg-green-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700 border-b">Week</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Wax Try-in</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Delivery</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Outside Lab</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">On-Hold</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b bg-green-100">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeklyData.map((week) => {
+                          const weekTotal = week.clinic_wax_tryin + week.clinic_delivery + 
+                                           week.clinic_outside_lab + week.clinic_on_hold;
+                          return (
+                            <tr key={week.week_number} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 border-b font-medium">Week {week.week_number}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.clinic_wax_tryin}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.clinic_delivery}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.clinic_outside_lab}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.clinic_on_hold}</td>
+                              <td className="px-3 py-2 border-b text-right font-bold bg-green-50">{weekTotal}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -813,6 +932,67 @@ export default function VolumeEntryForm({
                 </div>
               )}
             </div>
+            
+            {/* Weekly Breakdown Table - Units */}
+            {weeklyData.length > 0 && (
+              <div className="mt-6 border-t pt-4">
+                <button
+                  onClick={() => setShowWeeklyUnits(!showWeeklyUnits)}
+                  className="px-4 py-2 bg-purple-50 text-purple-700 rounded hover:bg-purple-100 transition-colors text-sm font-medium mb-3"
+                >
+                  {showWeeklyUnits ? '− Hide Weekly Breakdown' : '+ View Weekly Breakdown'}
+                </button>
+                
+                {showWeeklyUnits && (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm border border-gray-200">
+                      <thead className="bg-purple-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-gray-700 border-b">Week</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Immed.</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Econ.</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Econ+</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Prem.</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Ult.</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Repair</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Reline</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Partial</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Retry</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Remake</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b">Bite</th>
+                          <th className="px-3 py-2 text-right font-medium text-gray-700 border-b bg-purple-100">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {weeklyData.map((week) => {
+                          const weekTotal = week.immediate_units + week.economy_units + week.economy_plus_units +
+                                           week.premium_units + week.ultimate_units + week.repair_units +
+                                           week.reline_units + week.partial_units + week.retry_units +
+                                           week.remake_units + week.bite_block_units;
+                          return (
+                            <tr key={week.week_number} className="hover:bg-gray-50">
+                              <td className="px-3 py-2 border-b font-medium">Week {week.week_number}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.immediate_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.economy_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.economy_plus_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.premium_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.ultimate_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.repair_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.reline_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.partial_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.retry_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.remake_units}</td>
+                              <td className="px-3 py-2 border-b text-right">{week.bite_block_units}</td>
+                              <td className="px-3 py-2 border-b text-right font-bold bg-purple-50">{weekTotal}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

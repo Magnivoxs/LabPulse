@@ -85,6 +85,34 @@ export interface VolumeData {
   total_weekly_units: number;
 }
 
+// Weekly volume data structure for drill-down view
+export interface WeeklyVolumeData {
+  id?: number;
+  office_id: number;
+  year: number;
+  week_number: number;
+  lab_setups: number;
+  lab_fixed_cases: number;
+  lab_over_denture: number;
+  lab_processes: number;
+  lab_finishes: number;
+  clinic_wax_tryin: number;
+  clinic_delivery: number;
+  clinic_outside_lab: number;
+  clinic_on_hold: number;
+  immediate_units: number;
+  economy_units: number;
+  economy_plus_units: number;
+  premium_units: number;
+  ultimate_units: number;
+  repair_units: number;
+  reline_units: number;
+  partial_units: number;
+  retry_units: number;
+  remake_units: number;
+  bite_block_units: number;
+}
+
 // Tab types for navigation
 export type DataEntryTab = 'financial' | 'operations' | 'volume' | 'notes';
 

@@ -362,6 +362,34 @@ pub struct VolumeData {
     pub total_weekly_units: i32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WeeklyVolumeData {
+    pub id: Option<i64>,
+    pub office_id: i64,
+    pub year: i32,
+    pub week_number: i32,
+    pub lab_setups: i32,
+    pub lab_fixed_cases: i32,
+    pub lab_over_denture: i32,
+    pub lab_processes: i32,
+    pub lab_finishes: i32,
+    pub clinic_wax_tryin: i32,
+    pub clinic_delivery: i32,
+    pub clinic_outside_lab: i32,
+    pub clinic_on_hold: i32,
+    pub immediate_units: i32,
+    pub economy_units: i32,
+    pub economy_plus_units: i32,
+    pub premium_units: i32,
+    pub ultimate_units: i32,
+    pub repair_units: i32,
+    pub reline_units: i32,
+    pub partial_units: i32,
+    pub retry_units: i32,
+    pub remake_units: i32,
+    pub bite_block_units: i32,
+}
+
 // Save or update volume data
 #[tauri::command]
 pub fn save_volume_data(
@@ -566,6 +594,72 @@ pub fn get_previous_month_volume(
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.to_string()),
     }
+}
+
+// Get weekly volume records for drill-down view
+#[tauri::command]
+pub fn get_weekly_volume_records(
+    db: State<DbConnection>,
+    office_id: i64,
+    year: i32,
+    month: i32,
+) -> Result<Vec<WeeklyVolumeData>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Calculate week range for this month
+    let (week_start, week_end) = match month {
+        1 => (1, 4), 2 => (5, 8), 3 => (9, 13), 4 => (14, 17),
+        5 => (18, 22), 6 => (23, 26), 7 => (27, 30), 8 => (31, 35),
+        9 => (36, 39), 10 => (40, 43), 11 => (44, 48), 12 => (49, 53),
+        _ => return Err("Invalid month".to_string()),
+    };
+    
+    let mut stmt = conn.prepare(
+        "SELECT id, office_id, year, week_number,
+                lab_setups, lab_fixed_cases, lab_over_denture, lab_processes, lab_finishes,
+                clinic_wax_tryin, clinic_delivery, clinic_outside_lab, clinic_on_hold,
+                immediate_units, economy_units, economy_plus_units, premium_units, ultimate_units,
+                repair_units, reline_units, partial_units, retry_units, remake_units, bite_block_units
+         FROM weekly_volume
+         WHERE office_id = ?1 AND year = ?2 AND week_number BETWEEN ?3 AND ?4
+         ORDER BY week_number ASC"
+    ).map_err(|e| e.to_string())?;
+    
+    let weekly_records = stmt.query_map(
+        params![office_id, year, week_start, week_end],
+        |row| {
+            Ok(WeeklyVolumeData {
+                id: row.get(0)?,
+                office_id: row.get(1)?,
+                year: row.get(2)?,
+                week_number: row.get(3)?,
+                lab_setups: row.get(4)?,
+                lab_fixed_cases: row.get(5)?,
+                lab_over_denture: row.get(6)?,
+                lab_processes: row.get(7)?,
+                lab_finishes: row.get(8)?,
+                clinic_wax_tryin: row.get(9)?,
+                clinic_delivery: row.get(10)?,
+                clinic_outside_lab: row.get(11)?,
+                clinic_on_hold: row.get(12)?,
+                immediate_units: row.get(13)?,
+                economy_units: row.get(14)?,
+                economy_plus_units: row.get(15)?,
+                premium_units: row.get(16)?,
+                ultimate_units: row.get(17)?,
+                repair_units: row.get(18)?,
+                reline_units: row.get(19)?,
+                partial_units: row.get(20)?,
+                retry_units: row.get(21)?,
+                remake_units: row.get(22)?,
+                bite_block_units: row.get(23)?,
+            })
+        },
+    ).map_err(|e| e.to_string())?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| e.to_string())?;
+    
+    Ok(weekly_records)
 }
 
 // Save or update note

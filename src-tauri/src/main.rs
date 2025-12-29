@@ -54,6 +54,7 @@ fn main() {
             commands::save_volume_data,
             commands::get_volume_data,
             commands::get_previous_month_volume,
+            commands::get_weekly_volume_records,
             commands::save_note,
             commands::get_notes,
             commands::get_dashboard_data,
