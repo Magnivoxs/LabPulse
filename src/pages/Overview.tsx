@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useLocation } from 'react-router-dom';
 import DashboardSummary from '../components/DashboardSummary';
@@ -34,19 +34,127 @@ export default function Overview() {
   });
   const [sortBy, setSortBy] = useState<SortOption>('office_id_asc');
   
-  // Load dashboard data on mount
+  // Time period filter types and state
+  type TimePeriod = 'current_month' | 'last_month' | 'qtd' | 'ytd' | 'custom';
+  
+  interface DateRange {
+    startYear: number;
+    startMonth: number;
+    endYear: number;
+    endMonth: number;
+  }
+  
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('current_month');
+  const [customRange, setCustomRange] = useState<DateRange | null>(null);
+  const [customMonth, setCustomMonth] = useState<number>(currentMonth);
+  const [customYear, setCustomYear] = useState<number>(currentYear);
+  const [showCustomPicker, setShowCustomPicker] = useState(false);
+  
+  // Calculate date range based on selected period
+  const getDateRange = (): DateRange => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth() + 1; // 1-12
+
+    switch (selectedPeriod) {
+      case 'current_month':
+        return {
+          startYear: currentYear,
+          startMonth: currentMonth,
+          endYear: currentYear,
+          endMonth: currentMonth,
+        };
+      
+      case 'last_month':
+        const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+        return {
+          startYear: lastMonthYear,
+          startMonth: lastMonth,
+          endYear: lastMonthYear,
+          endMonth: lastMonth,
+        };
+      
+      case 'qtd':
+        // Q1: Jan-Mar (1-3), Q2: Apr-Jun (4-6), Q3: Jul-Sep (7-9), Q4: Oct-Dec (10-12)
+        const currentQuarter = Math.ceil(currentMonth / 3);
+        const quarterStartMonth = (currentQuarter - 1) * 3 + 1;
+        return {
+          startYear: currentYear,
+          startMonth: quarterStartMonth,
+          endYear: currentYear,
+          endMonth: currentMonth,
+        };
+      
+      case 'ytd':
+        return {
+          startYear: currentYear,
+          startMonth: 1,
+          endYear: currentYear,
+          endMonth: currentMonth,
+        };
+      
+      case 'custom':
+        return {
+          startYear: customYear,
+          startMonth: customMonth,
+          endYear: customYear,
+          endMonth: customMonth,
+        };
+      
+      default:
+        return {
+          startYear: currentYear,
+          startMonth: currentMonth,
+          endYear: currentYear,
+          endMonth: currentMonth,
+        };
+    }
+  };
+  
+  // Get period label for display
+  const getPeriodLabel = (): string => {
+    const range = getDateRange();
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    switch (selectedPeriod) {
+      case 'current_month':
+        return `${monthNames[range.startMonth - 1]} ${range.startYear}`;
+      
+      case 'last_month':
+        return `${monthNames[range.startMonth - 1]} ${range.startYear}`;
+      
+      case 'qtd':
+        return `Q${Math.floor((range.startMonth - 1) / 3) + 1} ${range.startYear} (${monthNames[range.startMonth - 1]} - ${monthNames[range.endMonth - 1]})`;
+      
+      case 'ytd':
+        return `YTD ${range.startYear} (Jan - ${monthNames[range.endMonth - 1]})`;
+      
+      case 'custom':
+        return `${monthNames[customMonth - 1]} ${customYear}`;
+      
+      default:
+        return '';
+    }
+  };
+  
+  // Load dashboard data when period changes
   useEffect(() => {
     loadDashboardData();
-  }, [currentMonth, currentYear]);
+  }, [selectedPeriod, customRange]);
   
   const loadDashboardData = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      const range = getDateRange();
+      console.log('Loading dashboard with date range:', range);
       const data = await invoke<OfficeSummary[]>('get_dashboard_data', {
-        year: currentYear,
-        month: currentMonth,
+        startYear: range.startYear,
+        startMonth: range.startMonth,
+        endYear: range.endYear,
+        endMonth: range.endMonth,
       });
       
       setAllOffices(data);
@@ -165,6 +273,147 @@ export default function Overview() {
             })}
           </p>
         </div>
+      </div>
+      
+      {/* Time Period Filter Bar */}
+      <div className="mb-6 bg-white rounded-lg shadow p-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          {/* Period Label */}
+          <div className="text-sm text-gray-600">
+            Showing data for: <span className="font-semibold text-gray-900">{getPeriodLabel()}</span>
+          </div>
+          
+          {/* Period Selector Buttons */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedPeriod('current_month')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPeriod === 'current_month'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Current Month
+            </button>
+            
+            <button
+              onClick={() => setSelectedPeriod('last_month')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPeriod === 'last_month'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Last Month
+            </button>
+            
+            <button
+              onClick={() => setSelectedPeriod('qtd')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPeriod === 'qtd'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Quarter to Date
+            </button>
+            
+            <button
+              onClick={() => setSelectedPeriod('ytd')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPeriod === 'ytd'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Year to Date
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowCustomPicker(!showCustomPicker);
+                if (!showCustomPicker) {
+                  setSelectedPeriod('custom');
+                }
+              }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                selectedPeriod === 'custom'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Custom Month
+            </button>
+          </div>
+        </div>
+        
+        {/* Custom Month Picker */}
+        {showCustomPicker && (
+          <div className="mt-4 p-4 bg-gray-50 rounded border border-gray-200">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
+                <select
+                  value={customMonth}
+                  onChange={(e) => {
+                    setCustomMonth(parseInt(e.target.value));
+                    setSelectedPeriod('custom');
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={1}>January</option>
+                  <option value={2}>February</option>
+                  <option value={3}>March</option>
+                  <option value={4}>April</option>
+                  <option value={5}>May</option>
+                  <option value={6}>June</option>
+                  <option value={7}>July</option>
+                  <option value={8}>August</option>
+                  <option value={9}>September</option>
+                  <option value={10}>October</option>
+                  <option value={11}>November</option>
+                  <option value={12}>December</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                <select
+                  value={customYear}
+                  onChange={(e) => {
+                    setCustomYear(parseInt(e.target.value));
+                    setSelectedPeriod('custom');
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={2024}>2024</option>
+                  <option value={2025}>2025</option>
+                  <option value={2026}>2026</option>
+                </select>
+              </div>
+              
+              <button
+                onClick={() => {
+                  loadDashboardData();
+                  setShowCustomPicker(false);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors self-end"
+              >
+                Apply
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowCustomPicker(false);
+                  setSelectedPeriod('current_month');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors self-end"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Summary Bar */}

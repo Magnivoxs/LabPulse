@@ -733,8 +733,10 @@ pub struct OfficeSummary {
 #[tauri::command]
 pub fn get_dashboard_data(
     db: State<DbConnection>,
-    year: i32,
-    month: i32,
+    start_year: i32,
+    start_month: i32,
+    end_year: i32,
+    end_month: i32,
 ) -> Result<Vec<OfficeSummary>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     
@@ -754,73 +756,190 @@ pub fn get_dashboard_data(
     
     let mut summaries = Vec::new();
     
+    // Check if this is a single month or multi-month period
+    let is_single_month = start_year == end_year && start_month == end_month;
+    
     for office in offices {
         let (office_id, office_name, model, dfo) = office.map_err(|e| e.to_string())?;
         
-        // Get financial data
-        let financial_result = conn.query_row(
-            "SELECT revenue, lab_exp_with_outside, personnel_exp, overtime_exp
-             FROM monthly_financials
-             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
-            params![office_id, year, month],
-            |row| {
-                Ok((
-                    row.get::<_, f64>(0)?,
-                    row.get::<_, f64>(1)?,
-                    row.get::<_, f64>(2)?,
-                    row.get::<_, f64>(3)?,
-                ))
-            },
-        );
+        // Get financial data - use actual values for single month, SUM for multi-month
+        let (financial_query, calc_percentages) = if is_single_month {
+            (
+                "SELECT 
+                    revenue,
+                    lab_exp_with_outside,
+                    personnel_exp,
+                    overtime_exp,
+                    year,
+                    month
+                 FROM monthly_financials
+                 WHERE office_id = ?1
+                   AND year = ?2 AND month = ?3",
+                true
+            )
+        } else {
+            (
+                "SELECT 
+                    SUM(revenue),
+                    SUM(lab_exp_with_outside),
+                    SUM(personnel_exp),
+                    SUM(overtime_exp),
+                    MAX(year),
+                    MAX(month)
+                 FROM monthly_financials
+                 WHERE office_id = ?1
+                   AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)",
+                false
+            )
+        };
+        
+        let financial_result = if is_single_month {
+            conn.query_row(
+                financial_query,
+                params![office_id, start_year, start_month],
+                |row| {
+                    Ok((
+                        row.get::<_, Option<f64>>(0)?,  // revenue
+                        row.get::<_, Option<f64>>(1)?,  // lab_exp_with_outside
+                        row.get::<_, Option<f64>>(2)?,  // personnel_exp
+                        row.get::<_, Option<f64>>(3)?,  // overtime_exp
+                        row.get::<_, Option<i32>>(4)?,  // year
+                        row.get::<_, Option<i32>>(5)?,  // month
+                    ))
+                },
+            )
+        } else {
+            conn.query_row(
+                financial_query,
+                params![office_id, start_year, start_month, end_year, end_month],
+                |row| {
+                    Ok((
+                        row.get::<_, Option<f64>>(0)?,  // SUM(revenue)
+                        row.get::<_, Option<f64>>(1)?,  // SUM(lab_exp_with_outside)
+                        row.get::<_, Option<f64>>(2)?,  // SUM(personnel_exp)
+                        row.get::<_, Option<f64>>(3)?,  // SUM(overtime_exp)
+                        row.get::<_, Option<i32>>(4)?,  // MAX(year)
+                        row.get::<_, Option<i32>>(5)?,  // MAX(month)
+                    ))
+                },
+            )
+        };
         
         let (revenue, lab_exp, personnel_exp, overtime_exp, has_financial) = match financial_result {
-            Ok((rev, lab, pers, ot)) => (Some(rev), Some(lab), Some(pers), Some(ot), true),
+            Ok((Some(rev), Some(lab), Some(pers), Some(ot), _, _)) => {
+                (Some(rev), Some(lab), Some(pers), Some(ot), true)
+            },
+            Ok((Some(rev), Some(lab), Some(pers), None, _, _)) => {
+                (Some(rev), Some(lab), Some(pers), None, true)
+            },
+            Ok((Some(rev), Some(lab), None, None, _, _)) => {
+                (Some(rev), Some(lab), None, None, true)
+            },
+            Ok((Some(rev), None, None, None, _, _)) => {
+                (Some(rev), None, None, None, true)
+            },
+            Ok((None, _, _, _, _, _)) => (None, None, None, None, false),
+            Ok(_) => {
+                // Partial data - treat as no financial data
+                (None, None, None, None, false)
+            },
             Err(_) => (None, None, None, None, false),
         };
         
-        // Calculate percentages
-        let lab_exp_percent = if let (Some(rev), Some(lab)) = (revenue, lab_exp) {
-            if rev > 0.0 { Some((lab / rev) * 100.0) } else { None }
-        } else { None };
-        
-        let personnel_percent = if let (Some(rev), Some(pers)) = (revenue, personnel_exp) {
-            if rev > 0.0 { Some((pers / rev) * 100.0) } else { None }
-        } else { None };
-        
-        let overtime_percent = if let (Some(rev), Some(ot)) = (revenue, overtime_exp) {
-            if rev > 0.0 { Some((ot / rev) * 100.0) } else { None }
-        } else { None };
-        
-        // Get operations data
-        let operations_result = conn.query_row(
-            "SELECT backlog_case_count FROM monthly_ops
-             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
-            params![office_id, year, month],
-            |row| row.get::<_, i32>(0),
-        );
-        
-        let (backlog_count, has_operations) = match operations_result {
-            Ok(count) => (Some(count), true),
-            Err(_) => (None, false),
+        // Calculate percentages only for single month periods
+        let (lab_exp_percent, personnel_percent, overtime_percent) = if calc_percentages {
+            // Calculate percentages for single month
+            let lab_pct = if let (Some(rev), Some(lab)) = (revenue, lab_exp) {
+                if rev > 0.0 {
+                    Some((lab / rev) * 100.0)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
+            let pers_pct = if let (Some(rev), Some(pers)) = (revenue, personnel_exp) {
+                if rev > 0.0 {
+                    Some((pers / rev) * 100.0)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
+            let ot_pct = if let (Some(rev), Some(ot)) = (revenue, overtime_exp) {
+                if rev > 0.0 {
+                    Some((ot / rev) * 100.0)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
+            (lab_pct, pers_pct, ot_pct)
+        } else {
+            // Multi-month period: no percentages
+            (None, None, None)
         };
         
-        // Check for volume data
+        // Get operations data - use actual value for single month, AVG for multi-month
+        let operations_query = if is_single_month {
+            "SELECT backlog_case_count 
+             FROM monthly_ops 
+             WHERE office_id = ?1 AND year = ?2 AND month = ?3"
+        } else {
+            "SELECT AVG(backlog_case_count)
+             FROM monthly_ops 
+             WHERE office_id = ?1
+               AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)"
+        };
+        
+        let (backlog_count, has_operations) = if is_single_month {
+            match conn.query_row(
+                operations_query,
+                params![office_id, start_year, start_month],
+                |row| row.get::<_, Option<i32>>(0),
+            ) {
+                Ok(Some(count)) => (Some(count), true),
+                Ok(None) => (None, false),
+                Err(_) => (None, false),
+            }
+        } else {
+            match conn.query_row(
+                operations_query,
+                params![office_id, start_year, start_month, end_year, end_month],
+                |row| row.get::<_, Option<f64>>(0),
+            ) {
+                Ok(Some(avg)) => (Some(avg.round() as i32), true),
+                Ok(None) => (None, false),
+                Err(_) => (None, false),
+            }
+        };
+        
+        // Check for volume data in date range
         let has_volume = conn.query_row(
-            "SELECT 1 FROM monthly_volume
-             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
-            params![office_id, year, month],
+             "SELECT 1 FROM monthly_volume
+             WHERE office_id = ?1
+               AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)
+             LIMIT 1",
+            params![office_id, start_year, start_month, end_year, end_month],
             |_row| Ok(true),
         ).unwrap_or(false);
         
-        // Check for notes
+        // Check for notes in date range
         let has_notes = conn.query_row(
-            "SELECT 1 FROM notes_actions
-             WHERE office_id = ?1 AND year = ?2 AND month = ?3",
-            params![office_id, year, month],
+             "SELECT 1 FROM notes_actions
+             WHERE office_id = ?1
+               AND (year * 100 + month) BETWEEN (?2 * 100 + ?3) AND (?4 * 100 + ?5)
+             LIMIT 1",
+            params![office_id, start_year, start_month, end_year, end_month],
             |_row| Ok(true),
         ).unwrap_or(false);
         
-        // Determine latest month with any data
+        // Determine latest month with any data (across all time, not just range)
         let latest_data = conn.query_row(
             "SELECT year, month FROM (
                 SELECT year, month FROM monthly_financials WHERE office_id = ?1
