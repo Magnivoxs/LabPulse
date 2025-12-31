@@ -1644,3 +1644,103 @@ pub fn get_office_rankings(
     Ok(rankings)
 }
 
+// Get all offices for directory
+#[tauri::command]
+pub fn get_directory_offices(db: State<DbConnection>) -> Result<Vec<serde_json::Value>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare(
+        "SELECT office_id, office_name, address, phone, managing_dentist, dfo, model, standardization_status 
+         FROM offices 
+         ORDER BY office_id"
+    ).map_err(|e| e.to_string())?;
+    
+    let offices = stmt.query_map([], |row| {
+        Ok(serde_json::json!({
+            "office_id": row.get::<_, i64>(0)?,
+            "office_name": row.get::<_, String>(1)?,
+            "address": row.get::<_, Option<String>>(2)?,
+            "phone": row.get::<_, Option<String>>(3)?,
+            "managing_dentist": row.get::<_, Option<String>>(4)?,
+            "dfo": row.get::<_, String>(5)?,
+            "model": row.get::<_, String>(6)?,
+            "standardization_status": row.get::<_, Option<String>>(7)?,
+        }))
+    })
+    .map_err(|e| e.to_string())?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| e.to_string())?;
+    
+    Ok(offices)
+}
+
+// Get detailed information for a specific office
+#[tauri::command]
+pub fn get_directory_office_details(
+    db: State<DbConnection>,
+    office_id: i64,
+) -> Result<serde_json::Value, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Get office information
+    let office = conn.query_row(
+        "SELECT office_id, office_name, address, phone, managing_dentist, dfo, model, standardization_status 
+         FROM offices 
+         WHERE office_id = ?1",
+        params![office_id],
+        |row| {
+            Ok(serde_json::json!({
+                "office_id": row.get::<_, i64>(0)?,
+                "office_name": row.get::<_, String>(1)?,
+                "address": row.get::<_, Option<String>>(2)?,
+                "phone": row.get::<_, Option<String>>(3)?,
+                "managing_dentist": row.get::<_, Option<String>>(4)?,
+                "dfo": row.get::<_, String>(5)?,
+                "model": row.get::<_, String>(6)?,
+                "standardization_status": row.get::<_, Option<String>>(7)?,
+            }))
+        }
+    ).map_err(|e| e.to_string())?;
+    
+    // Get staff for this office
+    let mut stmt = conn.prepare(
+        "SELECT name, job_title, hire_date 
+         FROM staff 
+         WHERE office_id = ?1 
+         ORDER BY hire_date"
+    ).map_err(|e| e.to_string())?;
+    
+    let staff: Vec<serde_json::Value> = stmt.query_map(params![office_id], |row| {
+        Ok(serde_json::json!({
+            "name": row.get::<_, String>(0)?,
+            "position": row.get::<_, String>(1)?, // Map job_title to position for frontend
+            "hire_date": row.get::<_, Option<String>>(2)?,
+        }))
+    })
+    .map_err(|e| e.to_string())?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| e.to_string())?;
+    
+    // Get lab manager contact
+    let lab_manager = conn.query_row(
+        "SELECT name, email, phone 
+         FROM lab_manager_contacts 
+         WHERE office_id = ?1",
+        params![office_id],
+        |row| {
+            Ok(serde_json::json!({
+                "name": row.get::<_, String>(0)?,
+                "email": row.get::<_, String>(1)?,
+                "phone": row.get::<_, String>(2)?,
+            }))
+        }
+    ).ok(); // Use .ok() to return None if not found instead of error
+    
+    // Combine all data
+    Ok(serde_json::json!({
+        "office": office,
+        "staff": staff,
+        "lab_manager": lab_manager,
+    }))
+}
+
