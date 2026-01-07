@@ -4,6 +4,7 @@ import OfficeDetail from './pages/OfficeDetail';
 import DataEntry from './pages/DataEntry';
 import Rankings from './pages/Rankings';
 import Directory from './pages/Directory';
+import Compliance from './pages/Compliance';
 import Settings from './pages/Settings';
 import './App.css';
 
@@ -56,6 +57,16 @@ function Navigation() {
             Directory
           </Link>
           <Link
+            to="/compliance"
+            className={`px-4 py-2 rounded-md transition-colors ${
+              location.pathname === '/compliance'
+                ? 'bg-blue-700 text-white'
+                : 'text-blue-100 hover:bg-blue-600'
+            }`}
+          >
+            Compliance
+          </Link>
+          <Link
             to="/settings"
             className={`px-4 py-2 rounded-md transition-colors ${
               location.pathname === '/settings'
@@ -86,6 +97,7 @@ function App() {
             <Route path="/data-entry" element={<DataEntry />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/directory" element={<Directory />} />
+            <Route path="/compliance" element={<Compliance />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

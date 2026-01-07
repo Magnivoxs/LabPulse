@@ -61,6 +61,7 @@ fn main() {
             commands::get_office_rankings,
             commands::get_directory_offices,
             commands::get_directory_office_details,
+            commands::get_compliance_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1744,3 +1744,110 @@ pub fn get_directory_office_details(
     }))
 }
 
+// Get submission compliance data with metrics
+#[tauri::command]
+pub fn get_compliance_data(db: State<DbConnection>) -> Result<Vec<serde_json::Value>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Get all offices
+    let mut stmt = conn.prepare(
+        "SELECT office_id, office_name, dfo FROM offices ORDER BY office_id"
+    ).map_err(|e| e.to_string())?;
+    
+    let offices: Vec<(i64, String, String)> = stmt
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    
+    let mut compliance_data = Vec::new();
+    
+    for (office_id, office_name, dfo) in offices {
+        // Get all submissions for this office
+        let mut stmt = conn.prepare(
+            "SELECT year, week_number, submitted 
+             FROM submission_compliance 
+             WHERE office_id = ?1 
+             ORDER BY year, week_number"
+        ).map_err(|e| e.to_string())?;
+        
+        let submissions: Vec<(i32, i32, i32)> = stmt
+            .query_map(params![office_id], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        
+        if submissions.is_empty() {
+            continue;
+        }
+        
+        // Calculate metrics
+        let total_weeks = submissions.len();
+        let submitted_weeks = submissions.iter().filter(|(_, _, s)| *s == 1).count();
+        let compliance_rate = (submitted_weeks as f64 / total_weeks as f64) * 100.0;
+        
+        // Calculate current streak (from most recent backwards)
+        let mut current_streak = 0;
+        for (_, _, submitted) in submissions.iter().rev() {
+            if *submitted == 1 {
+                current_streak += 1;
+            } else {
+                break;
+            }
+        }
+        
+        // Calculate longest streak
+        let mut longest_streak = 0;
+        let mut temp_streak = 0;
+        for (_, _, submitted) in &submissions {
+            if *submitted == 1 {
+                temp_streak += 1;
+                longest_streak = longest_streak.max(temp_streak);
+            } else {
+                temp_streak = 0;
+            }
+        }
+        
+        // Get recent submissions (last 10 weeks with data, oldest to newest)
+        // Filter out future weeks where no backlog data exists
+        let mut recent_with_data: Vec<i32> = Vec::new();
+
+        for (year, week_number, submitted) in submissions.iter().rev() {
+            // Check if actual backlog data exists for this week
+            let has_data = conn.query_row(
+                "SELECT COUNT(*) FROM weekly_volume WHERE office_id = ?1 AND year = ?2 AND week_number = ?3",
+                params![office_id, year, week_number],
+                |row| row.get::<_, i64>(0)
+            ).unwrap_or(0) > 0;
+            
+            if has_data {
+                recent_with_data.push(*submitted);
+                if recent_with_data.len() >= 10 {
+                    break;
+                }
+            }
+        }
+
+        // Reverse to get chronological order (oldest to newest)
+        recent_with_data.reverse();
+        let recent_submissions = recent_with_data;
+        
+        compliance_data.push(serde_json::json!({
+            "office_id": office_id,
+            "office_name": office_name,
+            "dfo": dfo,
+            "total_weeks": total_weeks,
+            "submitted_weeks": submitted_weeks,
+            "compliance_rate": compliance_rate,
+            "current_streak": current_streak,
+            "longest_streak": longest_streak,
+            "recent_submissions": recent_submissions,
+        }));
+    }
+    
+    Ok(compliance_data)
+}
