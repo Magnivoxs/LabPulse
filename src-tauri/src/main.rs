@@ -63,6 +63,8 @@ fn main() {
             commands::get_directory_offices,
             commands::get_directory_office_details,
             commands::get_directory_offices_for_export,
+            commands::remove_office,
+            commands::add_office_from_template,
             commands::get_compliance_data,
         ])
         .run(tauri::generate_context!())

@@ -2019,6 +2019,263 @@ pub fn get_directory_office_details(
     }))
 }
 
+// Remove office and all associated data
+#[tauri::command]
+pub fn remove_office(
+    db: State<DbConnection>,
+    office_id: i64,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Get office name for logging before deletion
+    let office_name: String = conn.query_row(
+        "SELECT office_name FROM offices WHERE office_id = ?1",
+        params![office_id],
+        |row| row.get(0)
+    ).map_err(|e| format!("Office not found: {}", e))?;
+    
+    // Temporarily disable foreign key constraints to allow deletion in any order
+    // This is safe because we're deleting all related records anyway
+    conn.execute("PRAGMA foreign_keys = OFF", [])
+        .map_err(|e| format!("Failed to disable foreign keys: {}", e))?;
+    
+    // Start transaction
+    conn.execute("BEGIN TRANSACTION", [])
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
+    
+    // Delete all child records first (explicit deletion for logging and safety)
+    // Order: delete from all tables that reference office_id
+    let delete_order = vec![
+        ("alerts", office_id),
+        ("notes_actions", office_id),
+        ("weekly_volume", office_id),
+        ("monthly_volume", office_id),
+        ("monthly_ops", office_id),
+        ("monthly_financials", office_id),
+        ("staff", office_id),
+        ("office_contacts", office_id),
+    ];
+    
+    for (table_name, oid) in delete_order {
+        // Try to delete, but don't fail if table doesn't exist
+        match conn.execute(
+            &format!("DELETE FROM {} WHERE office_id = ?1", table_name),
+            params![oid],
+        ) {
+            Ok(_) => {
+                // Success - continue
+            },
+            Err(e) => {
+                let error_msg = e.to_string();
+                // If it's a "no such table" error, that's okay - table might not exist
+                if error_msg.contains("no such table") {
+                    continue;
+                } else {
+                    // Rollback on other errors
+                    let _ = conn.execute("ROLLBACK", []);
+                    let _ = conn.execute("PRAGMA foreign_keys = ON", []);
+                    return Err(format!("Failed to delete from {}: {}", table_name, error_msg));
+                }
+            }
+        }
+    }
+    
+    // Finally delete the office itself (parent record)
+    match conn.execute(
+        "DELETE FROM offices WHERE office_id = ?1",
+        params![office_id],
+    ) {
+        Ok(rows_deleted) => {
+            if rows_deleted == 0 {
+                let _ = conn.execute("ROLLBACK", []);
+                let _ = conn.execute("PRAGMA foreign_keys = ON", []);
+                return Err("Office not found".to_string());
+            }
+            
+            // Commit transaction
+            conn.execute("COMMIT", [])
+                .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+            
+            // Re-enable foreign keys
+            conn.execute("PRAGMA foreign_keys = ON", [])
+                .map_err(|e| format!("Failed to re-enable foreign keys: {}", e))?;
+            
+            // Log deletion (console for now)
+            println!("Office removed: {} (ID: {})", office_name, office_id);
+            
+            Ok(format!("Office '{}' removed successfully", office_name))
+        },
+        Err(e) => {
+            let _ = conn.execute("ROLLBACK", []);
+            let _ = conn.execute("PRAGMA foreign_keys = ON", []);
+            Err(format!("Failed to delete office: {}", e))
+        }
+    }
+}
+
+// Add office from template data
+#[tauri::command]
+pub fn add_office_from_template(
+    db: State<DbConnection>,
+    office_data: serde_json::Value,
+) -> Result<String, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Parse office data
+    let office_id = office_data["office_id"]
+        .as_i64()
+        .ok_or("Office ID is required and must be a number")?;
+    
+    let office_name = office_data["office_name"]
+        .as_str()
+        .ok_or("Office Name is required")?
+        .to_string();
+    
+    let model = office_data["model"]
+        .as_str()
+        .ok_or("Model is required (must be PO or PLLC)")?
+        .to_uppercase();
+    
+    if model != "PO" && model != "PLLC" {
+        return Err("Model must be PO or PLLC".to_string());
+    }
+    
+    let address = office_data["address"].as_str().map(|s| s.to_string());
+    let city = office_data["city"].as_str().map(|s| s.to_string());
+    let state = office_data["state"].as_str().map(|s| s.to_string());
+    let zip = office_data["zip"].as_str().map(|s| s.to_string());
+    
+    // Combine address components
+    let full_address = if let (Some(addr), Some(c), Some(s), Some(z)) = (address.clone(), city, state, zip) {
+        Some(format!("{}, {}, {} {}", addr, c, s, z))
+    } else if let Some(addr) = address {
+        Some(addr)
+    } else {
+        None
+    };
+    
+    let phone = office_data["phone"].as_str().map(|s| s.to_string());
+    let managing_dentist = office_data["managing_dentist"].as_str().map(|s| s.to_string());
+    let dfo = office_data["dfo"]
+        .as_str()
+        .ok_or("DFO is required")?
+        .to_string();
+    
+    let standardization_status = office_data["standardization_status"]
+        .as_str()
+        .map(|s| s.to_string());
+    
+    // Start transaction
+    conn.execute("BEGIN TRANSACTION", [])
+        .map_err(|e| format!("Failed to start transaction: {}", e))?;
+    
+    // Check if office already exists
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM offices WHERE office_id = ?1)",
+        params![office_id],
+        |row| row.get(0)
+    ).map_err(|e| format!("Failed to check office existence: {}", e))?;
+    
+    if exists {
+        let _ = conn.execute("ROLLBACK", []);
+        return Err(format!("Office ID {} already exists", office_id));
+    }
+    
+    // Insert office
+    conn.execute(
+        "INSERT INTO offices (office_id, office_name, model, address, phone, managing_dentist, dfo, standardization_status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        params![office_id, office_name, model, full_address, phone, managing_dentist, dfo, standardization_status],
+    ).map_err(|e| {
+        let _ = conn.execute("ROLLBACK", []);
+        format!("Failed to insert office: {}", e)
+    })?;
+    
+    // Insert lab manager contact if provided
+    if let Some(lab_manager) = office_data.get("lab_manager") {
+        let name = lab_manager["name"]
+            .as_str()
+            .ok_or("Lab Manager name is required")?
+            .to_string();
+        
+        let phone = lab_manager["phone"].as_str().map(|s| s.to_string());
+        let role = lab_manager["role"].as_str().unwrap_or("Lab Manager").to_string();
+        
+        conn.execute(
+            "INSERT INTO office_contacts (office_id, role, name, phone)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![office_id, role, name, phone],
+        ).map_err(|e| {
+            let _ = conn.execute("ROLLBACK", []);
+            format!("Failed to insert lab manager contact: {}", e)
+        })?;
+    }
+    
+    // Insert monthly financials if provided
+    if let Some(financials) = office_data.get("monthly_financials").and_then(|f| f.as_array()) {
+        for financial in financials {
+            let year = financial["year"].as_i64().ok_or("Year is required for financial data")? as i32;
+            let month = financial["month"].as_i64().ok_or("Month is required for financial data")? as i32;
+            
+            if month < 1 || month > 12 {
+                let _ = conn.execute("ROLLBACK", []);
+                return Err(format!("Invalid month: {}", month));
+            }
+            
+            let revenue = financial["revenue"].as_f64();
+            let lab_exp_no_outside = financial["lab_exp_no_outside"].as_f64();
+            let lab_exp_with_outside = financial["lab_exp_with_outside"].as_f64();
+            let outside_lab_spend = financial["outside_lab_spend"].as_f64();
+            let teeth_supplies = financial["teeth_supplies"].as_f64();
+            let lab_supplies = financial["lab_supplies"].as_f64();
+            let personnel_exp = financial["personnel_exp"].as_f64();
+            let overtime_exp = financial["overtime_exp"].as_f64();
+            let bonus_exp = financial["bonus_exp"].as_f64();
+            
+            conn.execute(
+                "INSERT INTO monthly_financials (office_id, year, month, revenue, lab_exp_no_outside, lab_exp_with_outside, outside_lab_spend, teeth_supplies, lab_supplies, personnel_exp, overtime_exp, bonus_exp, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                params![office_id, year, month, revenue, lab_exp_no_outside, lab_exp_with_outside, outside_lab_spend, teeth_supplies, lab_supplies, personnel_exp, overtime_exp, bonus_exp],
+            ).map_err(|e| {
+                let _ = conn.execute("ROLLBACK", []);
+                format!("Failed to insert financial data: {}", e)
+            })?;
+        }
+    }
+    
+    // Insert monthly operations if provided
+    if let Some(operations) = office_data.get("monthly_ops").and_then(|o| o.as_array()) {
+        for ops in operations {
+            let year = ops["year"].as_i64().ok_or("Year is required for operations data")? as i32;
+            let month = ops["month"].as_i64().ok_or("Month is required for operations data")? as i32;
+            
+            if month < 1 || month > 12 {
+                let _ = conn.execute("ROLLBACK", []);
+                return Err(format!("Invalid month: {}", month));
+            }
+            
+            let backlog_case_count = ops["backlog_case_count"].as_i64().map(|v| v as i32);
+            let overtime_value = ops["overtime_value"].as_f64();
+            let labor_model_value = ops["labor_model_value"].as_f64();
+            
+            conn.execute(
+                "INSERT INTO monthly_ops (office_id, year, month, backlog_case_count, overtime_value, labor_model_value, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                params![office_id, year, month, backlog_case_count, overtime_value, labor_model_value],
+            ).map_err(|e| {
+                let _ = conn.execute("ROLLBACK", []);
+                format!("Failed to insert operations data: {}", e)
+            })?;
+        }
+    }
+    
+    // Commit transaction
+    conn.execute("COMMIT", [])
+        .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    
+    Ok(format!("Office '{}' (ID: {}) added successfully", office_name, office_id))
+}
+
 // Get submission compliance data with metrics
 #[tauri::command]
 pub fn get_compliance_data(db: State<DbConnection>) -> Result<Vec<serde_json::Value>, String> {
