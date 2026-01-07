@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import * as XLSX from 'xlsx';
 
 interface Office {
   office_id: number;
@@ -39,6 +40,9 @@ export default function Directory() {
   const [selectedOffice, setSelectedOffice] = useState<number | null>(null);
   const [officeDetails, setOfficeDetails] = useState<OfficeDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   // Load all offices
   const loadOffices = async () => {
@@ -95,16 +99,323 @@ export default function Directory() {
     loadOffices();
   }, []);
 
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showExportMenu && !target.closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    if (showExportMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showExportMenu]);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // TODO: Show toast notification
+  };
+
+  // Parse address into components (simple parsing)
+  const parseAddress = (address: string | null | undefined) => {
+    if (!address) return { full: '', city: '', state: '', zip: '' };
+    
+    // Try to parse common address formats
+    // Format: "123 Street, City, ST 12345" or "123 Street, City, ST"
+    const parts = address.split(',').map(p => p.trim());
+    const full = address;
+    
+    if (parts.length >= 2) {
+      const city = parts[parts.length - 2] || '';
+      const stateZip = parts[parts.length - 1] || '';
+      const stateZipMatch = stateZip.match(/^([A-Z]{2})\s*(\d{5}(?:-\d{4})?)?$/);
+      
+      if (stateZipMatch) {
+        return {
+          full,
+          city,
+          state: stateZipMatch[1] || '',
+          zip: stateZipMatch[2] || '',
+        };
+      }
+    }
+    
+    return { full, city: '', state: '', zip: '' };
+  };
+
+  // Get status (Active/Inactive)
+  const getStatus = (standardizationStatus: string | null | undefined): string => {
+    if (!standardizationStatus) return 'Active';
+    return standardizationStatus.toLowerCase().includes('inactive') ? 'Inactive' : 'Active';
+  };
+
+  // Export as CSV
+  const exportToCSV = async () => {
+    setExporting(true);
+    setExportSuccess(false);
+    setShowExportMenu(false);
+    
+    try {
+      // Get all offices with lab manager data
+      const allOffices = await invoke<any[]>('get_directory_offices_for_export');
+      
+      // Filter to match current filters
+      let exportData = allOffices;
+      
+      if (dfoFilter !== 'all') {
+        exportData = exportData.filter(office => office.dfo === dfoFilter);
+      }
+      
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        exportData = exportData.filter(office =>
+          office.office_name?.toLowerCase().includes(query) ||
+          office.office_id?.toString().includes(query) ||
+          office.address?.toLowerCase().includes(query)
+        );
+      }
+      
+      // Prepare CSV data
+      const csvRows = [];
+      csvRows.push([
+        'Office ID',
+        'Office Name',
+        'Address',
+        'City',
+        'State',
+        'ZIP',
+        'Phone',
+        'Managing Dentist',
+        'Model',
+        'DFO',
+        'Status',
+        'Lab Manager Name',
+        'Lab Manager Email',
+        'Lab Manager Phone'
+      ]);
+      
+      exportData.forEach(office => {
+        const addressParts = parseAddress(office.address);
+        csvRows.push([
+          office.office_id || '',
+          office.office_name || '',
+          addressParts.full,
+          addressParts.city,
+          addressParts.state,
+          addressParts.zip,
+          office.phone || '',
+          office.managing_dentist || '',
+          office.model || '',
+          office.dfo || '',
+          getStatus(office.standardization_status),
+          office.lab_manager_name || '',
+          office.lab_manager_email || '',
+          office.lab_manager_phone || '',
+        ]);
+      });
+      
+      // Convert to CSV string
+      const csvContent = csvRows.map(row => 
+        row.map(cell => {
+          const cellStr = String(cell || '');
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+            return `"${cellStr.replace(/"/g, '""')}"`;
+          }
+          return cellStr;
+        }).join(',')
+      ).join('\n');
+      
+      // Create blob and download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `LabPulse_Directory_${date}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to export CSV:', err);
+      alert('Failed to export CSV file');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Export as Excel
+  const exportToExcel = async () => {
+    setExporting(true);
+    setExportSuccess(false);
+    setShowExportMenu(false);
+    
+    try {
+      // Get all offices with lab manager data
+      const allOffices = await invoke<any[]>('get_directory_offices_for_export');
+      
+      // Filter to match current filters
+      let exportData = allOffices;
+      
+      if (dfoFilter !== 'all') {
+        exportData = exportData.filter(office => office.dfo === dfoFilter);
+      }
+      
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        exportData = exportData.filter(office =>
+          office.office_name?.toLowerCase().includes(query) ||
+          office.office_id?.toString().includes(query) ||
+          office.address?.toLowerCase().includes(query)
+        );
+      }
+      
+      // Prepare worksheet data
+      const worksheetData = [];
+      worksheetData.push([
+        'Office ID',
+        'Office Name',
+        'Address',
+        'City',
+        'State',
+        'ZIP',
+        'Phone',
+        'Managing Dentist',
+        'Model',
+        'DFO',
+        'Status',
+        'Lab Manager Name',
+        'Lab Manager Email',
+        'Lab Manager Phone'
+      ]);
+      
+      exportData.forEach(office => {
+        const addressParts = parseAddress(office.address);
+        worksheetData.push([
+          office.office_id || '',
+          office.office_name || '',
+          addressParts.full,
+          addressParts.city,
+          addressParts.state,
+          addressParts.zip,
+          office.phone || '',
+          office.managing_dentist || '',
+          office.model || '',
+          office.dfo || '',
+          getStatus(office.standardization_status),
+          office.lab_manager_name || '',
+          office.lab_manager_email || '',
+          office.lab_manager_phone || '',
+        ]);
+      });
+      
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 10 }, // Office ID
+        { wch: 30 }, // Office Name
+        { wch: 40 }, // Address
+        { wch: 20 }, // City
+        { wch: 5 },  // State
+        { wch: 10 }, // ZIP
+        { wch: 15 }, // Phone
+        { wch: 20 }, // Managing Dentist
+        { wch: 10 }, // Model
+        { wch: 15 }, // DFO
+        { wch: 10 }, // Status
+        { wch: 25 }, // Lab Manager Name
+        { wch: 30 }, // Lab Manager Email
+        { wch: 15 }, // Lab Manager Phone
+      ];
+      
+      // Add filters to header row
+      ws['!autofilter'] = { ref: `A1:N${worksheetData.length}` };
+      
+      XLSX.utils.book_append_sheet(wb, ws, 'Directory');
+      
+      // Generate file and download
+      const date = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `LabPulse_Directory_${date}.xlsx`);
+      
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to export Excel:', err);
+      alert('Failed to export Excel file');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-4">Office Directory</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold">Office Directory</h1>
+          
+          {/* Export Button */}
+          <div className="relative export-menu-container">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              disabled={exporting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors flex items-center gap-2"
+            >
+              {exporting ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <span>📥</span>
+                  Export
+                </>
+              )}
+            </button>
+            
+            {showExportMenu && !exporting && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                <button
+                  onClick={exportToCSV}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-t-md flex items-center gap-2"
+                >
+                  <span>📄</span>
+                  Export as CSV
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 rounded-b-md flex items-center gap-2 border-t border-gray-200"
+                >
+                  <span>📊</span>
+                  Export as Excel
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Export Info */}
+        {exportSuccess && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-800">
+            ✓ Export completed successfully!
+          </div>
+        )}
+        
+        <div className="mb-4 text-sm text-gray-600">
+          Export will include <span className="font-semibold">{filteredOffices.length}</span> office{filteredOffices.length !== 1 ? 's' : ''} (filtered results)
+        </div>
         
         {/* Search and Filter Bar */}
         <div className="flex gap-4 flex-wrap">

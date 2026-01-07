@@ -12,6 +12,9 @@ interface RankingMetric {
 
 type MetricType = 
   | 'revenue'
+  | 'cases'
+  | 'avgCaseValue'
+  | 'margin'
   | 'lab_expense_percent'
   | 'personnel_expense_percent'
   | 'total_weekly_units'
@@ -29,15 +32,18 @@ interface DateRange {
 }
 
 export default function Rankings() {
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>('revenue');
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('current_month');
-  const [rankings, setRankings] = useState<RankingMetric[]>([]);
-  const [loading, setLoading] = useState(false);
-
   // Get current date
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
+
+  // State management
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>('revenue');
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('last_month');
+  const [rankings, setRankings] = useState<RankingMetric[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const getDateRange = (): DateRange => {
     switch (selectedPeriod) {
@@ -136,6 +142,12 @@ export default function Rankings() {
   const formatValue = (value: number): string => {
     if (selectedMetric === 'revenue') {
       return `$${Math.round(value).toLocaleString()}`;
+    } else if (selectedMetric === 'cases') {
+      return Math.round(value).toLocaleString();
+    } else if (selectedMetric === 'avgCaseValue') {
+      return `$${value.toFixed(2)}`;
+    } else if (selectedMetric === 'margin') {
+      return `${value.toFixed(1)}%`;
     } else if (selectedMetric.includes('percent')) {
       return `${value.toFixed(1)}%`;
     } else if (selectedMetric === 'data_completeness') {
@@ -162,21 +174,78 @@ export default function Rankings() {
     };
   };
 
-  const loadRankings = async () => {
+  // Map metric types to backend rank_by values
+  const getRankByValue = (metric: MetricType): string => {
+    const metricMap: Record<MetricType, string> = {
+      'revenue': 'revenue',
+      'cases': 'cases',
+      'avgCaseValue': 'avgCaseValue',
+      'margin': 'margin',
+      'lab_expense_percent': 'revenue', // Not supported in new command, fallback
+      'personnel_expense_percent': 'revenue', // Not supported in new command, fallback
+      'total_weekly_units': 'revenue', // Not supported in new command, fallback
+      'backlog_in_lab': 'revenue', // Not supported in new command, fallback
+      'backlog_in_clinic': 'revenue', // Not supported in new command, fallback
+      'data_completeness': 'revenue', // Not supported in new command, fallback
+    };
+    return metricMap[metric] || 'revenue';
+  };
+
+  // Map time period to backend time_period values
+  const getTimePeriodValue = (period: TimePeriod): string => {
+    const periodMap: Record<TimePeriod, string> = {
+      'current_month': 'current',
+      'last_month': 'lastMonth',
+      'qtd': 'qtd',
+      'ytd': 'ytd',
+      'custom': 'current', // Fallback
+    };
+    return periodMap[period] || 'current';
+  };
+
+  // Handle month navigation
+  const handleMonthChange = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      if (selectedMonth === 1) {
+        setSelectedYear(selectedYear - 1);
+        setSelectedMonth(12);
+      } else {
+        setSelectedMonth(selectedMonth - 1);
+      }
+    } else {
+      if (selectedMonth === 12) {
+        setSelectedYear(selectedYear + 1);
+        setSelectedMonth(1);
+      } else {
+        setSelectedMonth(selectedMonth + 1);
+      }
+    }
+  };
+
+  const fetchRankings = async () => {
     setLoading(true);
     try {
-      const range = getDateRange();
-      const data = await invoke<any[]>('get_office_rankings', {
-        metric: selectedMetric,
-        startYear: range.startYear,
-        startMonth: range.startMonth,
-        endYear: range.endYear,
-        endMonth: range.endMonth,
+      const rankBy = getRankByValue(selectedMetric);
+      const timePeriod = getTimePeriodValue(selectedPeriod);
+
+      const data = await invoke<any[]>('get_office_rankings_by_month', {
+        year: selectedYear,
+        month: selectedMonth,
+        rankBy: rankBy,
+        timePeriod: timePeriod,
       });
       
-      // Sort and rank the data
-      const sorted = sortAndRankData(data);
-      setRankings(sorted);
+      // Transform backend data to match RankingMetric interface
+      const transformed: RankingMetric[] = data.map((item: any) => ({
+        office_id: parseInt(item.office_id) || 0,
+        office_name: item.office_name || '',
+        address: '', // Not returned by new command
+        dfo: '', // Not returned by new command
+        value: item.value || null,
+        rank: item.rank || 0,
+      }));
+      
+      setRankings(transformed);
     } catch (err) {
       console.error('Failed to load rankings:', err);
       setRankings([]);
@@ -186,15 +255,40 @@ export default function Rankings() {
   };
 
   useEffect(() => {
-    loadRankings();
-  }, [selectedMetric, selectedPeriod]);
+    fetchRankings();
+  }, [selectedYear, selectedMonth, selectedMetric, selectedPeriod]);
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const currentMonthLabel = `${monthNames[selectedMonth - 1]} ${selectedYear}`;
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Office Rankings</h1>
-        <div className="text-sm text-gray-600">
-          Viewing data for <span className="font-semibold text-gray-900">{getPeriodLabel()}</span>
+        <div className="flex items-center gap-4">
+          {/* Month Navigation */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleMonthChange('prev')}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              title="Previous month"
+            >
+              ←
+            </button>
+            <div className="text-sm font-semibold text-gray-900 min-w-[100px] text-center">
+              {currentMonthLabel}
+            </div>
+            <button
+              onClick={() => handleMonthChange('next')}
+              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              title="Next month"
+            >
+              →
+            </button>
+          </div>
+          <div className="text-sm text-gray-600">
+            Period: <span className="font-semibold text-gray-900">{getPeriodLabel()}</span>
+          </div>
         </div>
       </div>
 
@@ -210,6 +304,9 @@ export default function Rankings() {
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="revenue">Revenue</option>
+              <option value="cases">Cases</option>
+              <option value="avgCaseValue">Avg Case Value</option>
+              <option value="margin">Margin</option>
               <option value="lab_expense_percent">Lab Expense %</option>
               <option value="personnel_expense_percent">Personnel Expense %</option>
               <option value="total_weekly_units">Total Weekly Units</option>

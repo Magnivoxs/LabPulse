@@ -59,8 +59,10 @@ fn main() {
             commands::get_notes,
             commands::get_dashboard_data,
             commands::get_office_rankings,
+            commands::get_office_rankings_by_month,
             commands::get_directory_offices,
             commands::get_directory_office_details,
+            commands::get_directory_offices_for_export,
             commands::get_compliance_data,
         ])
         .run(tauri::generate_context!())

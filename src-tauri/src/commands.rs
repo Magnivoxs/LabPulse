@@ -1718,6 +1718,152 @@ pub fn get_office_rankings(
     Ok(rankings)
 }
 
+// Get office rankings by month with different metrics and time periods
+#[tauri::command]
+pub fn get_office_rankings_by_month(
+    db: State<DbConnection>,
+    year: i32,
+    month: i32,
+    rank_by: String,
+    time_period: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Calculate date range based on time_period
+    let (start_year, start_month, end_year, end_month) = match time_period.as_str() {
+        "current" => {
+            // First to last day of selected month (just use the month itself)
+            (year, month, year, month)
+        },
+        "lastMonth" => {
+            // Go back one month
+            if month == 1 {
+                (year - 1, 12, year - 1, 12)
+            } else {
+                (year, month - 1, year, month - 1)
+            }
+        },
+        "qtd" => {
+            // From quarter start to end of selected month
+            let quarter_start_month = ((month - 1) / 3) * 3 + 1;
+            (year, quarter_start_month, year, month)
+        },
+        "ytd" => {
+            // From Jan 1 to end of selected month
+            (year, 1, year, month)
+        },
+        _ => {
+            return Err(format!("Invalid time_period: {}", time_period));
+        }
+    };
+    
+    // Build SQL query based on rank_by metric
+    let (query, order_direction) = match rank_by.as_str() {
+        "revenue" => {
+            (
+                "SELECT 
+                    o.office_id,
+                    o.office_name,
+                    COALESCE(SUM(mf.revenue), 0) as value
+                 FROM offices o
+                 LEFT JOIN monthly_financials mf ON o.office_id = mf.office_id
+                     AND (mf.year * 100 + mf.month) BETWEEN (?1 * 100 + ?2) AND (?3 * 100 + ?4)
+                 GROUP BY o.office_id, o.office_name
+                 HAVING value > 0",
+                "DESC"
+            )
+        },
+        "cases" => {
+            (
+                "SELECT 
+                    o.office_id,
+                    o.office_name,
+                    COALESCE(SUM(mo.backlog_case_count), 0) as value
+                 FROM offices o
+                 LEFT JOIN monthly_ops mo ON o.office_id = mo.office_id
+                     AND (mo.year * 100 + mo.month) BETWEEN (?1 * 100 + ?2) AND (?3 * 100 + ?4)
+                 GROUP BY o.office_id, o.office_name
+                 HAVING value > 0",
+                "DESC"
+            )
+        },
+        "avgCaseValue" => {
+            (
+                "SELECT 
+                    o.office_id,
+                    o.office_name,
+                    CASE 
+                        WHEN COALESCE(SUM(mo.backlog_case_count), 0) > 0 
+                        THEN COALESCE(SUM(mf.revenue), 0) / COALESCE(SUM(mo.backlog_case_count), 0)
+                        ELSE 0
+                    END as value
+                 FROM offices o
+                 LEFT JOIN monthly_financials mf ON o.office_id = mf.office_id
+                     AND (mf.year * 100 + mf.month) BETWEEN (?1 * 100 + ?2) AND (?3 * 100 + ?4)
+                 LEFT JOIN monthly_ops mo ON o.office_id = mo.office_id
+                     AND (mo.year * 100 + mo.month) BETWEEN (?1 * 100 + ?2) AND (?3 * 100 + ?4)
+                 GROUP BY o.office_id, o.office_name
+                 HAVING value > 0",
+                "DESC"
+            )
+        },
+        "margin" => {
+            (
+                "SELECT 
+                    o.office_id,
+                    o.office_name,
+                    CASE 
+                        WHEN COALESCE(SUM(mf.revenue), 0) > 0 
+                        THEN ((COALESCE(SUM(mf.revenue), 0) - COALESCE(SUM(mf.lab_exp_with_outside), 0)) / COALESCE(SUM(mf.revenue), 0)) * 100
+                        ELSE 0
+                    END as value
+                 FROM offices o
+                 LEFT JOIN monthly_financials mf ON o.office_id = mf.office_id
+                     AND (mf.year * 100 + mf.month) BETWEEN (?1 * 100 + ?2) AND (?3 * 100 + ?4)
+                 GROUP BY o.office_id, o.office_name
+                 HAVING value > 0",
+                "DESC"
+            )
+        },
+        _ => {
+            return Err(format!("Invalid rank_by metric: {}", rank_by));
+        }
+    };
+    
+    // Execute query and get results
+    let mut stmt = conn.prepare(&format!("{} ORDER BY value {}", query, order_direction))
+        .map_err(|e| e.to_string())?;
+    
+    let results: Vec<(i64, String, f64)> = stmt
+        .query_map(
+            params![start_year, start_month, end_year, end_month],
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, f64>(2)?,
+                ))
+            }
+        )
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    
+    // Build ranked results
+    let mut rankings = Vec::new();
+    for (rank, (office_id, office_name, value)) in results.iter().enumerate() {
+        rankings.push(serde_json::json!({
+            "office_id": office_id.to_string(),
+            "office_name": office_name,
+            "rank": (rank + 1) as i32,
+            "value": value,
+            "change": None::<i32>,
+        }));
+    }
+    
+    Ok(rankings)
+}
+
 // Get all offices for directory
 #[tauri::command]
 pub fn get_directory_offices(db: State<DbConnection>) -> Result<Vec<serde_json::Value>, String> {
@@ -1739,6 +1885,61 @@ pub fn get_directory_offices(db: State<DbConnection>) -> Result<Vec<serde_json::
             "dfo": row.get::<_, String>(5)?,
             "model": row.get::<_, String>(6)?,
             "standardization_status": row.get::<_, Option<String>>(7)?,
+        }))
+    })
+    .map_err(|e| e.to_string())?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| e.to_string())?;
+    
+    Ok(offices)
+}
+
+// Get all offices with lab manager data for export
+#[tauri::command]
+pub fn get_directory_offices_for_export(db: State<DbConnection>) -> Result<Vec<serde_json::Value>, String> {
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    
+    // Use a subquery to get only the first lab manager contact per office
+    // This prevents duplicates when multiple contacts exist for the same office
+    // Note: office_contacts table doesn't have email column, so email will be NULL
+    let mut stmt = conn.prepare(
+        "SELECT 
+            o.office_id, 
+            o.office_name, 
+            o.address, 
+            o.phone, 
+            o.managing_dentist,
+            o.dfo, 
+            o.model,
+            o.standardization_status,
+            (SELECT oc.name 
+             FROM office_contacts oc 
+             WHERE oc.office_id = o.office_id 
+             AND oc.role = 'Lab Manager' 
+             LIMIT 1) as lab_manager_name,
+            NULL as lab_manager_email,
+            (SELECT oc.phone 
+             FROM office_contacts oc 
+             WHERE oc.office_id = o.office_id 
+             AND oc.role = 'Lab Manager' 
+             LIMIT 1) as lab_manager_phone
+         FROM offices o
+         ORDER BY o.office_id"
+    ).map_err(|e| e.to_string())?;
+    
+    let offices = stmt.query_map([], |row| {
+        Ok(serde_json::json!({
+            "office_id": row.get::<_, i64>(0)?,
+            "office_name": row.get::<_, String>(1)?,
+            "address": row.get::<_, Option<String>>(2)?,
+            "phone": row.get::<_, Option<String>>(3)?,
+            "managing_dentist": row.get::<_, Option<String>>(4)?,
+            "dfo": row.get::<_, String>(5)?,
+            "model": row.get::<_, Option<String>>(6)?,
+            "standardization_status": row.get::<_, Option<String>>(7)?,
+            "lab_manager_name": row.get::<_, Option<String>>(8)?,
+            "lab_manager_email": row.get::<_, Option<String>>(9)?, // Will be NULL since column doesn't exist
+            "lab_manager_phone": row.get::<_, Option<String>>(10)?,
         }))
     })
     .map_err(|e| e.to_string())?
