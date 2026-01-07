@@ -4,7 +4,6 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useLocation } from 'react-router-dom';
 import MonthOfficeSelector from '../components/MonthOfficeSelector';
 import FinancialEntryForm from '../components/FinancialEntryForm';
-import OperationsEntryForm from '../components/OperationsEntryForm';
 import VolumeEntryForm from '../components/VolumeEntryForm';
 import NotesSection from '../components/NotesSection';
 import { DataEntryTab } from '../types/DataEntry';
@@ -36,6 +35,25 @@ export default function DataEntry() {
   const [hasOperationsData, setHasOperationsData] = useState(false);
   const [hasVolumeData, setHasVolumeData] = useState(false);
   const [hasNotesData, setHasNotesData] = useState(false);
+  
+  // Operations data state for enhanced staffing tracking
+  const [operationsData, setOperationsData] = useState({
+    backlog_case_count: '',
+    overtime_value: '',
+    current_staff: '',
+    required_staff: '',
+    staffing_trend: '',
+  });
+  
+  // Data status tracking
+  const [dataStatus, setDataStatus] = useState({
+    financial: false,
+    operations: false,
+    volume: false,
+    notes: false,
+  });
+  
+  const [saving, setSaving] = useState(false);
 
   const location = useLocation();
 
@@ -62,6 +80,13 @@ export default function DataEntry() {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  // Load operations data when office/month/year changes
+  useEffect(() => {
+    if (selectedOffice) {
+      loadOperationsData(selectedOffice, selectedYear, selectedMonth);
+    }
+  }, [selectedOffice, selectedYear, selectedMonth]);
 
   const handleImport = async (importType: 'offices' | 'staff' | 'contacts' | 'bulk_financials' | 'bulk_weekly_volume') => {
     setImporting(importType);
@@ -109,8 +134,377 @@ export default function DataEntry() {
     }
   };
 
+  // Load operations data with enhanced staffing tracking
+  const loadOperationsData = async (officeId: number, year: number, month: number) => {
+    try {
+      const data = await invoke<any>('get_operations_data', {
+        officeId,
+        year,
+        month,
+      });
+      
+      if (data) {
+        setOperationsData({
+          backlog_case_count: data.backlog_case_count?.toString() || '',
+          overtime_value: data.overtime_value?.toString() || '',
+          current_staff: data.current_staff?.toString() || '',
+          required_staff: data.required_staff?.toString() || '',
+          staffing_trend: data.staffing_trend?.toString() || '',
+        });
+        setDataStatus(prev => ({ ...prev, operations: true }));
+        setHasOperationsData(true);
+      } else {
+        setOperationsData({
+          backlog_case_count: '',
+          overtime_value: '',
+          current_staff: '',
+          required_staff: '',
+          staffing_trend: '',
+        });
+        setDataStatus(prev => ({ ...prev, operations: false }));
+        setHasOperationsData(false);
+      }
+    } catch (err) {
+      console.error('Failed to load operations data:', err);
+      setDataStatus(prev => ({ ...prev, operations: false }));
+      setHasOperationsData(false);
+    }
+  };
+
+  // Save operations data with enhanced staffing tracking
+  const saveOperationsData = async () => {
+    if (!selectedOffice) return;
+    
+    setSaving(true);
+    try {
+      await invoke('save_operations_data', {
+        officeId: selectedOffice,
+        year: selectedYear,
+        month: selectedMonth,
+        backlogCaseCount: operationsData.backlog_case_count ? parseInt(operationsData.backlog_case_count) : null,
+        overtimeValue: operationsData.overtime_value ? parseFloat(operationsData.overtime_value) : null,
+        currentStaff: operationsData.current_staff ? parseFloat(operationsData.current_staff) : null,
+        requiredStaff: operationsData.required_staff ? parseFloat(operationsData.required_staff) : null,
+        staffingTrend: operationsData.staffing_trend ? parseFloat(operationsData.staffing_trend) : null,
+      });
+      
+      alert('Operations data saved successfully!');
+      await loadOperationsData(selectedOffice, selectedYear, selectedMonth);
+    } catch (err) {
+      console.error('Failed to save operations data:', err);
+      alert('Failed to save operations data');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Calculate overall data status
   const hasAnyData = hasFinancialData || hasOperationsData || hasVolumeData || hasNotesData;
+
+  // Enhanced Operations Entry Form Component with Staffing Tracking
+  function EnhancedOperationsEntryForm({
+    officeId,
+    year,
+    month,
+    onDataChange,
+  }: {
+    officeId: number | null;
+    year: number;
+    month: number;
+    onDataChange: () => void;
+  }) {
+    const [formData, setFormData] = useState({
+      backlog_case_count: '',
+      overtime_value: '',
+      current_staff: '',
+      required_staff: '',
+      staffing_trend: '',
+    });
+    const [saving, setSaving] = useState(false);
+
+    // Load operations data
+    useEffect(() => {
+      if (officeId) {
+        loadData();
+      }
+    }, [officeId, year, month]);
+
+    const loadData = async () => {
+      if (!officeId) return;
+      
+      try {
+        const data = await invoke<any>('get_operations_data', {
+          officeId,
+          year,
+          month,
+        });
+        
+        if (data) {
+          setFormData({
+            backlog_case_count: data.backlog_case_count?.toString() || '',
+            overtime_value: data.overtime_value?.toString() || '',
+            current_staff: data.current_staff?.toString() || '',
+            required_staff: data.required_staff?.toString() || '',
+            staffing_trend: data.staffing_trend?.toString() || '',
+          });
+        } else {
+          setFormData({
+            backlog_case_count: '',
+            overtime_value: '',
+            current_staff: '',
+            required_staff: '',
+            staffing_trend: '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load operations data:', err);
+      }
+    };
+
+    const handleSave = async () => {
+      if (!officeId) return;
+      
+      setSaving(true);
+      try {
+        await invoke('save_operations_data', {
+          officeId,
+          year,
+          month,
+          backlogCaseCount: formData.backlog_case_count ? parseInt(formData.backlog_case_count) : null,
+          overtimeValue: formData.overtime_value ? parseFloat(formData.overtime_value) : null,
+          currentStaff: formData.current_staff ? parseFloat(formData.current_staff) : null,
+          requiredStaff: formData.required_staff ? parseFloat(formData.required_staff) : null,
+          staffingTrend: formData.staffing_trend ? parseFloat(formData.staffing_trend) : null,
+        });
+        
+        alert('Operations data saved successfully!');
+        onDataChange();
+        await loadData();
+      } catch (err) {
+        console.error('Failed to save operations data:', err);
+        alert('Failed to save operations data');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    // Calculate staffing status
+    const getStaffingStatus = () => {
+      const current = parseFloat(formData.current_staff);
+      const required = parseFloat(formData.required_staff);
+      const trend = parseFloat(formData.staffing_trend);
+      
+      if (isNaN(current) || isNaN(required)) return null;
+      
+      if (trend > 0) {
+        return { status: 'Overstaffed', color: 'text-orange-600 bg-orange-50', emoji: '🟠' };
+      } else if (trend < 0) {
+        return { status: 'Understaffed', color: 'text-red-600 bg-red-50', emoji: '🔴' };
+      } else {
+        return { status: 'Properly Staffed', color: 'text-green-600 bg-green-50', emoji: '🟢' };
+      }
+    };
+
+    const staffingStatus = getStaffingStatus();
+
+    if (!officeId) {
+      return (
+        <div className="text-center text-gray-500 py-8">
+          Please select an office to enter operations data
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Operations Data Entry</h2>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+
+        {/* Operations Overview */}
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow p-6 mb-6 text-white">
+          <h3 className="text-lg font-semibold mb-4">Operations Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-sm opacity-90">Backlog Cases</div>
+              <div className="text-3xl font-bold">
+                {formData.backlog_case_count || '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm opacity-90">Overtime Value</div>
+              <div className="text-3xl font-bold">
+                {formData.overtime_value ? `$${parseFloat(formData.overtime_value).toLocaleString()}` : '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm opacity-90">Current Staff</div>
+              <div className="text-3xl font-bold">
+                {formData.current_staff || '-'}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm opacity-90">Staffing Status</div>
+              <div className="text-xl font-bold flex items-center gap-2">
+                {staffingStatus ? (
+                  <>
+                    <span>{staffingStatus.emoji}</span>
+                    <span>{staffingStatus.status}</span>
+                  </>
+                ) : '-'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Backlog Management */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">📦</span>
+            Backlog Management
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Total Cases in Backlog
+              </label>
+              <input
+                type="number"
+                value={formData.backlog_case_count}
+                onChange={(e) => setFormData({ ...formData, backlog_case_count: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter total backlog count"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Total number of cases currently in backlog
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Overtime Tracking */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">⏰</span>
+            Overtime Tracking
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Overtime Cost/Hours
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.overtime_value}
+                onChange={(e) => setFormData({ ...formData, overtime_value: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter overtime value"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Overtime cost in dollars or total hours
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Staffing Management */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">
+            <span className="mr-2">👥</span>
+            Staffing Management
+          </h3>
+          
+          {/* Staffing Status Alert */}
+          {staffingStatus && (
+            <div className={`mb-4 p-4 rounded-lg ${staffingStatus.color}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{staffingStatus.emoji}</span>
+                <div>
+                  <div className="font-semibold">{staffingStatus.status}</div>
+                  <div className="text-sm">
+                    {formData.staffing_trend && (
+                      <>Trend: {parseFloat(formData.staffing_trend) > 0 ? '+' : ''}{formData.staffing_trend} FTE</>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Current Staffed Positions
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.current_staff}
+                onChange={(e) => setFormData({ ...formData, current_staff: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., 2.5"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Current FTE positions filled
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required FTE
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.required_staff}
+                onChange={(e) => setFormData({ ...formData, required_staff: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., 2.3"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Required FTE based on workload
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Staffing Trend
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                value={formData.staffing_trend}
+                onChange={(e) => setFormData({ ...formData, staffing_trend: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., +0.5 or -0.3"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Positive = Overstaffed, Negative = Understaffed
+              </p>
+            </div>
+          </div>
+
+          {/* Staffing Explanation */}
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-2">Understanding Staffing Metrics:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• <strong>Current Staff:</strong> Actual FTE positions filled (e.g., 2.5 FTE)</li>
+              <li>• <strong>Required FTE:</strong> Needed FTE based on workload analysis</li>
+              <li>• <strong>Trend:</strong> Current - Required (positive means overstaffed, negative means need more staff)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -330,15 +724,16 @@ export default function DataEntry() {
           )}
 
           {activeTab === 'operations' && (
-            <div>
-              <h2 className="text-2xl font-bold mb-6">Operations Data Entry</h2>
-              <OperationsEntryForm
-                officeId={selectedOffice}
-                month={selectedMonth}
-                year={selectedYear}
-                onDataLoaded={setHasOperationsData}
-              />
-            </div>
+            <EnhancedOperationsEntryForm
+              officeId={selectedOffice}
+              year={selectedYear}
+              month={selectedMonth}
+              onDataChange={() => {
+                if (selectedOffice) {
+                  loadOperationsData(selectedOffice, selectedYear, selectedMonth);
+                }
+              }}
+            />
           )}
 
           {activeTab === 'volume' && (

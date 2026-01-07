@@ -252,6 +252,20 @@ fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_office_date ON alerts(office_id, year, month)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_dismissed ON alerts(is_dismissed)", [])?;
     
+    // Migration: Add staffing tracking columns to monthly_ops table
+    // Check if columns exist before adding (SQLite doesn't support IF NOT EXISTS for ALTER TABLE)
+    let has_current_staff: bool = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('monthly_ops') WHERE name='current_staff'",
+        [],
+        |row| row.get::<_, i64>(0).map(|count| count > 0)
+    ).unwrap_or(false);
+    
+    if !has_current_staff {
+        conn.execute("ALTER TABLE monthly_ops ADD COLUMN current_staff REAL", [])?;
+        conn.execute("ALTER TABLE monthly_ops ADD COLUMN required_staff REAL", [])?;
+        conn.execute("ALTER TABLE monthly_ops ADD COLUMN staffing_trend REAL", [])?;
+    }
+    
     Ok(())
 }
 

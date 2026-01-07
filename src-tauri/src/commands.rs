@@ -234,58 +234,132 @@ pub fn save_operations_data(
     office_id: i64,
     year: i32,
     month: i32,
-    backlog_case_count: i32,
-    overtime_value: f64,
-    labor_model_value: f64,
-) -> Result<String, String> {
+    backlog_case_count: Option<i32>,
+    overtime_value: Option<f64>,
+    current_staff: Option<f64>,
+    required_staff: Option<f64>,
+    staffing_trend: Option<f64>,
+) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     
-    conn.execute(
-        "INSERT INTO monthly_ops (
-            office_id, year, month, backlog_case_count, overtime_value, labor_model_value
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-        ON CONFLICT(office_id, year, month) DO UPDATE SET
-            backlog_case_count = excluded.backlog_case_count,
-            overtime_value = excluded.overtime_value,
-            labor_model_value = excluded.labor_model_value",
-        params![office_id, year, month, backlog_case_count, overtime_value, labor_model_value],
+    // Check if record exists
+    let exists: bool = conn.query_row(
+        "SELECT COUNT(*) FROM monthly_ops WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| row.get::<_, i64>(0).map(|count| count > 0)
     ).map_err(|e| e.to_string())?;
     
-    Ok("Operations data saved successfully".to_string())
+    if exists {
+        // Update existing record
+        conn.execute(
+            "UPDATE monthly_ops 
+             SET backlog_case_count = ?1, 
+                 overtime_value = ?2,
+                 current_staff = ?3,
+                 required_staff = ?4,
+                 staffing_trend = ?5,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE office_id = ?6 AND year = ?7 AND month = ?8",
+            params![
+                backlog_case_count,
+                overtime_value,
+                current_staff,
+                required_staff,
+                staffing_trend,
+                office_id,
+                year,
+                month
+            ],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        // Insert new record
+        conn.execute(
+            "INSERT INTO monthly_ops (
+                office_id, year, month, 
+                backlog_case_count, overtime_value,
+                current_staff, required_staff, staffing_trend
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                office_id,
+                year,
+                month,
+                backlog_case_count,
+                overtime_value,
+                current_staff,
+                required_staff,
+                staffing_trend,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
 }
 
-// Get operations data for specific office/month
+// Get operations data including auto-calculated backlog and overtime
 #[tauri::command]
 pub fn get_operations_data(
     db: State<DbConnection>,
     office_id: i64,
     year: i32,
     month: i32,
-) -> Result<Option<OperationsData>, String> {
+) -> Result<Option<serde_json::Value>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     
-    let result = conn.query_row(
-        "SELECT id, office_id, year, month, backlog_case_count, overtime_value, labor_model_value
-         FROM monthly_ops
+    // Get staffing data from monthly_ops
+    let ops_result = conn.query_row(
+        "SELECT current_staff, required_staff, staffing_trend
+         FROM monthly_ops 
          WHERE office_id = ?1 AND year = ?2 AND month = ?3",
         params![office_id, year, month],
         |row| {
-            Ok(OperationsData {
-                id: row.get(0)?,
-                office_id: row.get(1)?,
-                year: row.get(2)?,
-                month: row.get(3)?,
-                backlog_case_count: row.get(4)?,
-                overtime_value: row.get(5)?,
-                labor_model_value: row.get(6)?,
-            })
-        },
+            Ok((
+                row.get::<_, Option<f64>>(0)?,
+                row.get::<_, Option<f64>>(1)?,
+                row.get::<_, Option<f64>>(2)?,
+            ))
+        }
     );
     
-    match result {
-        Ok(data) => Ok(Some(data)),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-        Err(e) => Err(e.to_string()),
+    let (current_staff, required_staff, staffing_trend) = match ops_result {
+        Ok(data) => data,
+        Err(rusqlite::Error::QueryReturnedNoRows) => (None, None, None),
+        Err(e) => return Err(e.to_string()),
+    };
+    
+    // Auto-calculate backlog from monthly_volume (average of weekly data)
+    let backlog_case_count: Option<i32> = conn.query_row(
+        "SELECT CAST(AVG(
+            lab_setups + lab_fixed_cases + lab_over_denture + lab_processes + lab_finishes +
+            clinic_wax_tryin + clinic_delivery + clinic_outside_lab + clinic_on_hold
+         ) AS INTEGER)
+         FROM weekly_volume
+         WHERE office_id = ?1 AND year = ?2 
+         AND week_number >= (?3 - 1) * 4 + 1 AND week_number <= ?3 * 4",
+        params![office_id, year, month],
+        |row| row.get(0)
+    ).ok();
+    
+    // Auto-calculate overtime from monthly_financials
+    let overtime_value: Option<f64> = conn.query_row(
+        "SELECT overtime_exp
+         FROM monthly_financials
+         WHERE office_id = ?1 AND year = ?2 AND month = ?3",
+        params![office_id, year, month],
+        |row| row.get(0)
+    ).ok().flatten();
+    
+    // If we have any data, return it
+    if current_staff.is_some() || required_staff.is_some() || staffing_trend.is_some() 
+        || backlog_case_count.is_some() || overtime_value.is_some() {
+        Ok(Some(serde_json::json!({
+            "backlog_case_count": backlog_case_count,
+            "overtime_value": overtime_value,
+            "current_staff": current_staff,
+            "required_staff": required_staff,
+            "staffing_trend": staffing_trend,
+        })))
+    } else {
+        Ok(None)
     }
 }
 
