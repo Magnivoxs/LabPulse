@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Local tool configuration
+.claude/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Supabase local files
+.supabase/
+supabase/.temp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/settings.json
+.vscode/*.local.json
+.idea/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+
+# Sensitive source data
+private-data/
+confidential/
+real-data/
+uploads/
+sample-data/private/
+*.key
+*.pem
+*.p12
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
