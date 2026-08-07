@@ -6,9 +6,9 @@ The initial product is designed for Lab Operations Managers who need to compare 
 
 ## Current Status
 
-Platform Design (Sprint 1 – Platform Foundation, Sprint 1.5 – Domain Model Finalization & AI Knowledge Layer, Sprint 2 – Data Platform Design, and Sprint 2.5 – Legacy Knowledge Extraction all complete). The repository has moved through product discovery, an architecture transition, a domain-modeling cleanup pass, a logical data platform design pass, and an extraction of validated business knowledge from a previously undocumented archived implementation — settling data ownership, versioning, audit, retention, and immutability *before* any database schema is written. Start with [ADR-000](docs/decisions/ADR-000-architectural-philosophy.md) or [AI Context](docs/development/AI_CONTEXT.md) for a fast orientation, or [Project Memory](docs/development/PROJECT_MEMORY.md) for full current architecture, decisions, and the recommended next sprint (Sprint 3 – Database Design, not yet started).
+Platform Design (Sprint 1 – Platform Foundation, Sprint 1.5 – Domain Model Finalization & AI Knowledge Layer, Sprint 2 – Data Platform Design, and Sprint 2.5 – Legacy Knowledge Extraction all complete). **Sprint 3 (Database Design) is underway and gated: Sprint 3A (Decision Reconciliation) and Sprint 3B (Logical-to-Physical Database Mapping) are complete; Sprint 3C (RLS and Security Policy Design) and Sprint 3D (Independent Design Review) have not started.** The repository has moved through product discovery, an architecture transition, a domain-modeling cleanup pass, a logical data platform design pass, an extraction of validated business knowledge from a previously undocumented archived implementation, and a proposed physical database schema — settling data ownership, versioning, audit, retention, and immutability *before* any database schema was written, and subjecting that schema proposal to decision reconciliation *before* implementation begins. Start with [ADR-000](docs/decisions/ADR-000-architectural-philosophy.md) or [AI Context](docs/development/AI_CONTEXT.md) for a fast orientation, or [Project Memory](docs/development/PROJECT_MEMORY.md) for full current architecture, decisions, and the recommended next sprint (Sprint 3C – RLS and Security Policy Design).
 
-No application code, dependencies, or database migrations exist yet. The repository is not production-ready and should not contain real employee, payroll, customer, or confidential company data.
+No application code, dependencies, or database migrations exist yet — the Sprint 3B physical schema in [`docs/database/`](docs/database/) is a reviewable design proposal in Markdown, not executable SQL. The repository is not production-ready and should not contain real employee, payroll, customer, or confidential company data.
 
 ## Product Direction
 
@@ -73,6 +73,12 @@ The stack remains proposed until architecture decisions are accepted.
 - [Permission Model](docs/data-model/permission-model.md) — capability-based authorization
 - [Entity Lifecycle](docs/data-model/entity-lifecycle.md)
 
+### Database (Proposed Physical Schema)
+
+- [`docs/database/`](docs/database/) — proposed PostgreSQL/Supabase physical schema (Sprint 3B): [physical model principles](docs/database/01-physical-model-principles.md), [table catalog](docs/database/02-table-catalog.md), [column and type catalog](docs/database/03-column-and-type-catalog.md), [keys, relationships, and constraints](docs/database/04-keys-relationships-and-constraints.md), [temporal, versioning, and snapshots](docs/database/05-temporal-versioning-and-snapshots.md), [import lineage model](docs/database/06-import-lineage-model.md), [authorization data model](docs/database/07-authorization-data-model.md), [retention, archive, and erasure boundaries](docs/database/08-retention-archive-and-erasure-boundaries.md), [deferred entities](docs/database/09-deferred-entities.md), [schema review checklist](docs/database/10-schema-review-checklist.md)
+- [ERD (Physical, Proposed)](docs/architecture/erd-physical-proposed.md)
+- [ADR-007: Proposed Physical Data Model](docs/decisions/ADR-007-proposed-physical-data-model.md) — documentation only, no SQL or migrations
+
 ### Security
 
 - [Security Requirements](docs/security/01-security-requirements.md)
@@ -102,6 +108,7 @@ The stack remains proposed until architecture decisions are accepted.
 docs/                    Product, architecture, data, security, and decision records
 docs/entities/           Conceptual canonical entity catalog (no SQL)
 docs/data-model/         Logical data platform design: relationships, lifecycle, versioning, audit, retention (no SQL)
+docs/database/           Proposed PostgreSQL/Supabase physical schema (Sprint 3B; documentation only, no SQL or migrations)
 docs/legacy/             Business knowledge extracted from an archived, non-target implementation (historical reference only)
 docs/imports/            Import framework, import profiles, normalization, and validation architecture
 docs/scenario-engine/    Scenario engine purpose and scenario-shape documents

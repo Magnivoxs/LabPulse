@@ -1,8 +1,8 @@
 # Entity: SecurityRole
 
-**Version:** 0.1
-**Status:** Proposed (fields conceptual; candidate list needs reconciliation — see below)
-**Last Updated:** 2026-08-04
+**Version:** 0.3
+**Status:** Proposed (MVP candidate list resolved 2026-08-05; Permission Set relationship direction corrected 2026-08-06 — see below; fields conceptual)
+**Last Updated:** 2026-08-06
 
 ## Purpose
 
@@ -12,14 +12,28 @@ Represents an authorization role — what a [User](user.md) is allowed to do in 
 
 SecurityRole is the entity formerly documented as part of the generic "Role" ([`docs/entities/role.md`](role.md), now superseded — see that document for the historical naming-collision note). SecurityRole governs **access and permissions**, referenced by [Permission](permission.md) to determine what a User may view or do. It is distinct from [JobRole](job-role.md), which describes what an Employee does at an office.
 
-## Important: Candidate List Needs Reconciliation
+## MVP Candidate List: Resolved (Sprint 3B, 2026-08-05)
 
-Two lists of candidate security roles now exist in this repository and have not been reconciled:
+**Update (2026-08-05):** the founder approved the following as the **initial MVP role configuration**, per [`docs/development/SPRINT_3B_REPORT.md`](../development/SPRINT_3B_REPORT.md) Founder-Approved Decision 2:
+
+- Organization Administrator
+- Operations Manager
+- Read-Only Viewer
+
+These three, and only these three, are seeded as system-default `security_role` rows in the Sprint 3B physical proposal (see [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md)). The expanded candidates below are **explicitly deferred**, not rejected — they remain valid future roles pending confirmation of their actual capability requirements, and the physical design supports adding them later as organization-scoped or new system-default rows without a schema change.
+
+**Deferred candidates (not seeded for MVP):** Regional Manager, Operations Director, Recruiter, Payroll, Administrator, Executive.
+
+A role named "Regional Manager," if and when it is added, must never itself create region-based authorization — its access would be expressed entirely through Office-scoped or organization-wide Permission grants, per [ADR-004](../decisions/ADR-004-office-based-authorization.md) (Accepted) and [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md).
+
+### Original Reconciliation Note (Historical — Superseded Above)
+
+Two lists of candidate security roles previously existed in this repository and had not been reconciled:
 
 1. [`docs/product/02-mvp-prd.md`](../product/02-mvp-prd.md) Section 12 lists: Organization Administrator, Operations Manager, Read-Only Viewer.
-2. This sprint's domain finalization names: Regional Manager, Operations Director, Recruiter, Payroll, Administrator, Executive.
+2. Sprint 1.5's domain finalization named: Regional Manager, Operations Director, Recruiter, Payroll, Administrator, Executive.
 
-These may represent the same underlying roles at different points in the founder's thinking, a broader set the PRD's initial three were only a starting subset of, or genuinely different access levels (for example, "Payroll" and "Recruiter" sound like functional/departmental roles rather than general management levels). This document does not guess which is correct — it records both and flags the reconciliation as needed before database design. See Open Questions.
+These were left unreconciled because they could have represented the same underlying roles at different points in the founder's thinking, a broader set the PRD's initial three were only a starting subset of, or genuinely different access levels. The founder's Sprint 3B decision above resolves this for MVP purposes by adopting the PRD's three as the initial configuration and deferring the rest — it does not retroactively declare the six deferred candidates invalid or incorrect.
 
 ## Owner
 
@@ -76,7 +90,11 @@ None directly.
 
 [`docs/data-model/permission-model.md`](../data-model/permission-model.md) elaborates how a SecurityRole grants a **Permission Set** — a named collection of **Capabilities** (for example, Import Labor Model, View P&L, Approve Hiring, Run Scenario, Manage Users, View Executive Dashboard). Permissions are capability-based, never hardcoded to a role name.
 
+**Update (Sprint 3B.1, 2026-08-06):** the physical mapping's relationship direction between SecurityRole and Permission Set was corrected — the foreign key now lives on `security_role` (referencing `permission_set`), not the reverse. This means multiple SecurityRoles can reference the same Permission Set later without a schema change, which is the relationally correct expression of "a SecurityRole comes with a Permission Set" the logical model describes. See [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md) and [`docs/development/SPRINT_3B_1_REVIEW_CORRECTIONS.md`](../development/SPRINT_3B_1_REVIEW_CORRECTIONS.md).
+
+**Update (Sprint 3B.2, 2026-08-06):** Permission Sets themselves now carry tenant ownership — a nullable `organization_id` where `NULL` means platform-owned/immutable and a real value means organization-owned. A global SecurityRole may reference only a global Permission Set; an organization-specific SecurityRole may reference a same-organization Permission Set or an intentional global one, but never another organization's custom Permission Set (enforced by a Sprint 3C trigger, since this is a conditional rule no plain foreign key can express). See [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md) "Permission Set Relationship, Corrected" and [`docs/development/SPRINT_3B_2_INTEGRITY_CORRECTIONS.md`](../development/SPRINT_3B_2_INTEGRITY_CORRECTIONS.md).
+
 ## Open Questions
 
-- Reconcile the PRD's three initial role candidates (Organization Administrator, Operations Manager, Read-Only Viewer) with this sprint's expanded candidate list (Regional Manager, Operations Director, Recruiter, Payroll, Administrator, Executive) before database design.
-- Whether SecurityRoles are global (fixed by LabPulse) or organization-configurable.
+- ~~Reconcile the PRD's three initial role candidates with the expanded six-role candidate list before database design.~~ **Resolved 2026-08-05** — see MVP Candidate List above.
+- Whether SecurityRoles are global (fixed by LabPulse) or organization-configurable. **Partially resolved 2026-08-05:** the physical design in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md) supports both (a nullable `organization_id` column), so the schema does not block either answer; whether LabPulse should actually offer organization-defined custom roles as an MVP product feature remains an open product decision, not a schema question.

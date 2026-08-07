@@ -948,7 +948,7 @@ OQ-059, OQ-065
 A labor-cost-to-revenue percentage as computed within the Labor Model workbook itself.
 
 **Formula:**  
-To be confirmed. Not yet known whether this uses the same numerator and denominator as the P&L-derived [Payroll Percentage](#payroll-percentage) metric above, or a separate Labor-Model-internal calculation.
+To be confirmed. The Labor Model workbook's own internal calculation — not derived from, and not assumed equal to, the P&L-derived [Payroll Percentage](#payroll-percentage) formula.
 
 **Required fields:**  
 
@@ -962,11 +962,14 @@ Office and reporting period.
 **Important limitation:**  
 This metric must not be assumed equivalent to [Payroll Percentage](#payroll-percentage). Displaying both without reconciliation could mislead a manager if they diverge.
 
+**Separation decision (Sprint 3B, 2026-08-05):**<br>
+The founder confirmed these are treated as **two permanently separate facts**, not reconciled into one value (see [`docs/development/SPRINT_3B_REPORT.md`](../development/SPRINT_3B_REPORT.md) Founder-Approved Decision 4). Labor % of Revenue retains its Labor-Model source lineage and source terminology; Payroll Percentage is calculated only from approved P&L revenue and qualifying payroll-expense definitions. Neither may silently overwrite or be merged with the other. Physically, each is stored on its own snapshot table (`labor_model_snapshot.labor_percentage_of_revenue` versus `payroll_snapshot`'s qualifying-expense figures) — see [`docs/database/03-column-and-type-catalog.md`](../database/03-column-and-type-catalog.md). This decision does **not** determine which (if either) figure is authoritative for any given business question, and does not confirm whether the two would in fact diverge for a real workbook — it only settles that they must never be silently conflated.
+
 **Status:**  
-Proposed. Relationship to Payroll Percentage unresolved.
+Proposed. Formula still to be confirmed; relationship to Payroll Percentage now resolved as "permanently separate, never merged" per above.
 
 **Related open questions:**  
-OQ-060
+OQ-060 (Resolved 2026-08-05 — see [`docs/development/open-questions.md`](../development/open-questions.md))
 
 ---
 

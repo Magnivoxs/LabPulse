@@ -1,8 +1,8 @@
 # LabPulse Project Memory
 
-**Version:** 0.4
-**Status:** Platform Design
-**Last Updated:** 2026-08-04
+**Version:** 0.5
+**Status:** Platform Design — Sprint 3 (Database Design) underway
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -10,7 +10,9 @@ This is the repository's persistent memory: a single place to see current archit
 
 ## Current Milestone
 
-**Sprint 1 (Platform Foundation), Sprint 1.5 (Domain Model Finalization & AI Knowledge Layer), Sprint 2 (Data Platform Design), and Sprint 2.5 (Legacy Knowledge Extraction) are all complete.** The repository has defined the canonical data model concept, a conceptual entity catalog (24 entities), an immutable Recommendation lifecycle with a concrete persistence design, a full logical data platform (relationships, lifecycle, versioning, audit, retention, snapshot strategy, import persistence, capability-based permissions), DDD-inspired domain boundaries, a conceptual ERD, a dedicated AI knowledge layer, and an extraction of validated business knowledge from a previously undocumented legacy implementation. See Completed Deliverables below. **Sprint 3 (Database Design) has not started; see Recommended Next Sprint.**
+**Sprint 1 (Platform Foundation), Sprint 1.5 (Domain Model Finalization & AI Knowledge Layer), Sprint 2 (Data Platform Design), and Sprint 2.5 (Legacy Knowledge Extraction) are all complete.** The repository has defined the canonical data model concept, a conceptual entity catalog (24 entities), an immutable Recommendation lifecycle with a concrete persistence design, a full logical data platform (relationships, lifecycle, versioning, audit, retention, snapshot strategy, import persistence, capability-based permissions), DDD-inspired domain boundaries, a conceptual ERD, a dedicated AI knowledge layer, and an extraction of validated business knowledge from a previously undocumented legacy implementation. See Completed Deliverables below.
+
+**Sprint 3 (Database Design) is underway and gated: Sprint 3A (Decision Reconciliation) and Sprint 3B (Logical-to-Physical Database Mapping) are complete; Sprint 3C (RLS and Security Policy Design) and Sprint 3D (Independent Design Review) have not started.** Sprint 3A produced a corrected decision-reconciliation report reviewing an external architecture review against the actual repository state. Sprint 3B translated the founder-approved decisions into a proposed physical PostgreSQL/Supabase schema — see [`docs/database/`](../database/), [`docs/architecture/erd-physical-proposed.md`](../architecture/erd-physical-proposed.md), [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md), and [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md). No migrations, executable SQL, or Supabase project exist yet — Sprint 3B produced a reviewable design proposal only, still local and uncommitted pending founder review.
 
 **Legacy discovery:** a repository comparison audit found the founder's archived GitHub repository contains a working Tauri desktop application covering much of the same business domain, built and paused before this documentation-first effort began. It is not the implementation target, but its business knowledge has been extracted into [`docs/legacy/`](../legacy/README.md) — see Completed Deliverables (Sprint 2.5) and Known Risks below.
 
@@ -37,12 +39,13 @@ This is the repository's persistent memory: a single place to see current archit
 | Next.js + Supabase | Proposed | [ADR-001](../decisions/ADR-001-nextjs-and-supabase.md) |
 | Organization-based multi-tenancy with RLS | Proposed | [ADR-002](../decisions/ADR-002-multi-tenant-data-model.md) |
 | Customer-controlled AI providers | Proposed | [ADR-003](../decisions/ADR-003-ai-provider-strategy.md) |
-| Office-based authorization (replaces region-based) | Proposed | [ADR-004](../decisions/ADR-004-office-based-authorization.md) |
+| Office-based authorization (replaces region-based) | **Accepted (2026-08-05)** | [ADR-004](../decisions/ADR-004-office-based-authorization.md) |
 | Canonical data model as the single internal contract | Proposed | [ADR-005](../decisions/ADR-005-canonical-data-model.md) |
 | Architectural philosophy (read first) | Proposed | [ADR-000](../decisions/ADR-000-architectural-philosophy.md) |
 | Data platform philosophy (logical model before database) | Proposed | [ADR-006](../decisions/ADR-006-data-platform-philosophy.md) |
+| Proposed physical data model (Sprint 3B) | Proposed | [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md) |
 
-No ADR has been formally **Accepted** yet; all remain **Proposed** pending review, consistent with the repository still being in Discovery/Architecture, not implementation.
+ADR-004 was formally **Accepted** on 2026-08-05 following explicit founder authorization for Sprint 3B. Every other ADR, including the new ADR-007, remains **Proposed** pending further review — see [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md).
 
 ## Completed Deliverables
 
@@ -87,6 +90,21 @@ No ADR has been formally **Accepted** yet; all remain **Proposed** pending revie
 - 8 new open questions added (OQ-066–OQ-073), none resolved by assuming legacy behavior was correct
 - No code copied or reused; no Git changes to either repository; no architecture decisions altered
 
+### Sprint 3A – Decision Reconciliation and Schema Readiness
+
+- A corrected decision-reconciliation report reviewing an external Gemini architecture review's findings against the actual repository state, rejecting or correcting several unverifiable or contradicted claims
+- Identified the one genuine schema-blocking open question (OQ-061, staffing unit) versus many legitimately deferrable items
+- A five-item founder decision packet, all subsequently approved (see Sprint 3B)
+
+### Sprint 3B – Logical-to-Physical Database Mapping
+
+- [`docs/database/`](../database/) created (ten documents): physical model principles, table catalog, column/type catalog, keys/relationships/constraints, temporal/versioning/snapshot patterns, import lineage model, authorization data model, retention/archive/erasure boundaries, deferred entities, schema review checklist
+- [`docs/architecture/erd-physical-proposed.md`](../architecture/erd-physical-proposed.md) — four Mermaid ER diagrams distinguishing MVP, deferred, optional, version, and header/detail structures
+- [ADR-007: Proposed Physical Data Model](../decisions/ADR-007-proposed-physical-data-model.md) (Proposed)
+- [ADR-004](../decisions/ADR-004-office-based-authorization.md) formally **Accepted**
+- Founder-approved decisions applied: MVP SecurityRole list (3 roles, 6 deferred), extensible staffing-unit design (OQ-061 partially resolved), Labor %/Payroll % permanent separation (OQ-060 resolved), BacklogSnapshot header/detail/dimension design (moved into MVP scope), archive-not-delete retention default confirmed, legacy thresholds not adopted (OQ-066 resolved for MVP), franchise grouping excluded from MVP (OQ-055 resolved for MVP)
+- No migrations, executable SQL, Supabase project, dependencies, or application code created — a reviewable design proposal only, per [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md)
+
 ## Repository Maturity
 
 The repository has progressed from pure business discovery (Sprint 0) through an architecture-transition pass (region-to-office authorization, import framework, scenario engine, BR-002–BR-006), into Platform Design (Sprint 1), through a domain-model finalization pass (Sprint 1.5) that closed out naming ambiguities and gave the repository a dedicated AI-facing knowledge layer, and now through Data Platform Design (Sprint 2), which settled ownership, versioning, audit, snapshot, and immutability philosophy before any schema exists. A named, cross-linked conceptual data model, a philosophy every decision can be checked against, and now a full logical data platform design exist ahead of any database or application work. This is intentionally sequenced to avoid the repeated database redesigns and tightly coupled code that would result from starting implementation without these decisions already settled.
@@ -121,62 +139,64 @@ Topics referenced elsewhere in the repository that do not yet have a dedicated i
 
 ## Known Risks
 
-- **Labor % of Revenue vs. Payroll Percentage divergence:** the Labor Model workbook's "Labor % of Revenue" field may or may not be the same calculation as the P&L-derived Payroll Percentage metric. Presenting both without reconciliation could mislead a manager (OQ-060).
+- **Labor % of Revenue vs. Payroll Percentage divergence:** **separation decision resolved 2026-08-05** — the two are now permanently treated as separate, never-merged facts (see [`docs/data/01-metrics-dictionary.md`](../data/01-metrics-dictionary.md)). Whether their underlying formulas would actually produce different numbers for a real workbook remains unconfirmed; the risk of silently conflating them, specifically, is closed.
 - **New business rules (BR-002 through BR-006) have no approved formulas or thresholds.** They exist as structure only; implementing them prematurely with assumed values would violate the repository's "do not invent business rules" constraint.
 - **Single-workbook dependency for Labor Model schema:** only one workbook has been analyzed; formatting risk across future workbook revisions or other organizations' formats is unconfirmed.
-- **Temporary office assignments and future franchises** are named requirements in ADR-004 without a design; implementing office-based authorization before these are designed risks rework.
-- **Real data discipline:** the repository must continue to contain no real office names, real Office IDs, real region names, or real financial/staffing values. This has been maintained so far and must be re-verified on every future documentation pass.
-- **SecurityRole candidate list is unreconciled:** the PRD's initial three roles (Organization Administrator, Operations Manager, Read-Only Viewer) and Sprint 1.5's expanded six-role list (Regional Manager, Operations Director, Recruiter, Payroll, Administrator, Executive) have not been reconciled into one approved list (see [`docs/entities/security-role.md`](../entities/security-role.md)).
-- **Entity catalog is conceptual only:** [`docs/entities/`](../entities/) defines purpose, relationships, and high-level fields, not a schema. Four entities (ProductionSnapshot, QualitySnapshot, CareerGridSnapshot, RecruitingSnapshot) do not yet even have fields defined, by design.
-- **Scenario definitions are not yet formally versioned**, which blocks fully populating a Recommendation's "Scenario Version" field as designed in [`docs/data-model/recommendation-persistence.md`](../data-model/recommendation-persistence.md).
-- **Hard-delete / retention reconciliation is unresolved:** [ADR-006](../decisions/ADR-006-data-platform-philosophy.md)'s "nothing is deleted" principle has not yet been reconciled with legitimate deletion obligations (contractual/legal erasure requests) — see [`docs/data-model/05-retention-policy.md`](../data-model/05-retention-policy.md) Open Questions.
-- **Notifications has no formal entity yet** — see [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md) Open Questions.
-- **Legacy alert thresholds conflict sharply with approved thresholds** (roughly 2–5x higher in every case found: laboratory expense, personnel expense, and backlog). Requires founder resolution before Sprint 3 treats any threshold as a stable default — see [`docs/legacy/03-business-rule-comparison.md`](../legacy/03-business-rule-comparison.md) and OQ-066.
+- **Temporary office assignments** now have a physical column design (Sprint 3B) but expiry enforcement is still undesigned (OQ-054 partially resolved). **Future franchises** are now explicitly excluded from the MVP hierarchy (OQ-055 resolved for MVP) rather than left as an implementation-blocking unknown, though the eventual franchise design itself remains open.
+- **Real data discipline:** the repository must continue to contain no real office names, real Office IDs, real region names, or real financial/staffing values. This has been maintained so far and must be re-verified on every future documentation pass, including throughout Sprint 3B's schema documents.
+- **SecurityRole candidate list:** **resolved for MVP, 2026-08-05** — the PRD's initial three roles (Organization Administrator, Operations Manager, Read-Only Viewer) are the approved MVP configuration; the expanded six-role list is explicitly deferred, not rejected (see [`docs/entities/security-role.md`](../entities/security-role.md)).
+- **Entity catalog is conceptual only:** [`docs/entities/`](../entities/) defines purpose, relationships, and high-level fields, not a schema. Four entities (ProductionSnapshot, QualitySnapshot, CareerGridSnapshot, RecruitingSnapshot) do not yet even have fields defined, by design, and remain physically deferred as of Sprint 3B (see [`docs/database/09-deferred-entities.md`](../database/09-deferred-entities.md)).
+- **Scenario definitions are not yet formally versioned** in the logical model, but Sprint 3B proposes a physical `scenario_definition`/`scenario_definition_version` design closing this gap at the schema level (see [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md)) — the logical-model gap in [`docs/data-model/recommendation-persistence.md`](../data-model/recommendation-persistence.md) should be updated to reflect this in a future pass.
+- **Hard-delete / retention reconciliation is unresolved:** the archive-not-delete **default** is now confirmed (Sprint 3B, see [`docs/data-model/05-retention-policy.md`](../data-model/05-retention-policy.md)); the exceptional legitimate-erasure pathway remains deliberately undesigned — see [`docs/database/08-retention-archive-and-erasure-boundaries.md`](../database/08-retention-archive-and-erasure-boundaries.md).
+- **Notifications has no formal entity yet** — deliberately still true after Sprint 3B; see [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md) Open Questions and [`docs/database/09-deferred-entities.md`](../database/09-deferred-entities.md).
+- **Legacy alert thresholds conflict sharply with approved thresholds** (roughly 2–5x higher in every case found). **Resolved for MVP, 2026-08-05:** the legacy thresholds are not adopted; the four approved values remain the configurable, versioned defaults (OQ-066). A future volume-adjusted threshold model remains a separate, unresolved enhancement.
 - **Terminology equivalence unconfirmed:** whether legacy's "Personnel %" and "Lab Exp %" are the same metrics as the approved Payroll Percentage and Laboratory Expense Percentage is not yet confirmed (OQ-067) — treating them as interchangeable without confirmation would risk corrupting the Metrics Dictionary.
+- **New (Sprint 3B): `organization_id`/`office_id` consistency-enforcement gap.** Every table carrying a denormalized `organization_id` alongside an `office_id` has no schema-level guarantee the two agree; Sprint 3C must design a trigger, application-layer invariant, or alternative before RLS policies can safely trust `organization_id` — see [`docs/database/04-keys-relationships-and-constraints.md`](../database/04-keys-relationships-and-constraints.md).
 
-**Resolved this sprint (Sprint 2.5):** none of the risks above are new; the legacy-related risks were surfaced, not resolved, by the legacy knowledge extraction. **Resolved in Sprint 1.5:** the "Role" naming ambiguity (split into JobRole and SecurityRole) and Office/Location terminology drift (Office is now sole canonical term; OQ-053 Resolved) — see [`docs/development/DECISION_LOG.md`](DECISION_LOG.md).
+**Resolved this sprint (Sprint 3B, 2026-08-05):** SecurityRole MVP list, Labor %/Payroll % separation (conflation risk only), franchise MVP exclusion, legacy-threshold non-adoption, retention default confirmation, OQ-061 architecture-level partial resolution. **Resolved in Sprint 2.5:** none — legacy-related risks were surfaced, not resolved. **Resolved in Sprint 1.5:** the "Role" naming ambiguity (split into JobRole and SecurityRole) and Office/Location terminology drift (Office is now sole canonical term; OQ-053 Resolved) — see [`docs/development/DECISION_LOG.md`](DECISION_LOG.md).
 
 ## Remaining Architectural Work
 
 Not yet designed or approved:
 
-- Concrete database schema derived from the conceptual entity catalog in [`docs/entities/`](../entities/) and the logical data model in [`docs/data-model/`](../data-model/) — field types, keys, indexes, and constraints (**Sprint 3** scope)
-- Row-Level Security policy design for office-based and organization-based scoping
-- Franchise grouping design within the authorization hierarchy
-- Temporary office assignment design (expiry, renewal)
-- Import Profile schema implementation (conceptually defined in [`docs/imports/03-import-profiles.md`](../imports/03-import-profiles.md); no profiles beyond Labor Model's schema exist yet)
+- **Row-Level Security policy design** (Sprint 3C) for office-based and organization-based scoping, using the ownership/access dependencies documented in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md)
+- **The `organization_id`/`office_id` consistency-enforcement mechanism** (trigger, application-layer invariant, or design change) flagged as a new Sprint 3B risk above
+- **Independent review of the Sprint 3B physical-model proposal** (Sprint 3D) before any table design is treated as final
+- Franchise grouping's eventual design (excluded from MVP, not designed even conceptually — OQ-055)
+- Temporary office assignment expiry-enforcement mechanism (OQ-054, columns proposed, behavior undecided)
+- Import Profile schema implementation for sources beyond Labor Model (conceptually defined in [`docs/imports/03-import-profiles.md`](../imports/03-import-profiles.md); Sprint 3B's physical import-lineage tables are source-agnostic, but only the Labor Model profile has a documented source schema)
 - AI credential storage mechanism (ADR-003 defers this explicitly)
 - Database migration strategy and tooling choice
-- Reconciliation of the two SecurityRole candidate lists (see Known Risks)
-- Fields for the four purpose-only snapshot entities (ProductionSnapshot, QualitySnapshot, CareerGridSnapshot, RecruitingSnapshot)
-- Formal versioning design for Scenario definitions (see Known Risks)
-- Hard-delete / retention reconciliation (see Known Risks)
-- A formal Notifications entity, if one is needed (see Known Risks)
+- Fields, source systems, grain, and cadence for the four purpose-only snapshot entities (ProductionSnapshot, QualitySnapshot, CareerGridSnapshot, RecruitingSnapshot) — still physically deferred after Sprint 3B
+- A formal Notifications entity, if one is needed (still deferred after Sprint 3B)
 - Any event-bus, queue, or notification technology implied by [`docs/architecture/event-driven-processing.md`](../architecture/event-driven-processing.md) (explicitly deferred, guidance only)
-- Resolution of the legacy threshold conflicts and backlog/production-taxonomy questions (OQ-066–OQ-073) before Sprint 3 finalizes related entity fields and configuration defaults
+- Resolution of the remaining legacy reconciliation questions not touched by Sprint 3B (OQ-067 through OQ-073 except OQ-066)
+- Confirmation or revision of the Sprint 3B judgment calls flagged throughout [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md) (the `metric_observation` persistence approach, the 1:1 SecurityRole–Permission-Set assumption, `employee_office_assignment` and `task_status_history`'s inclusion)
 
 ## Recommended Next Sprint
 
-**Sprint 3 – Database Design.** Translate the conceptual entity catalog ([`docs/entities/`](../entities/)) and the logical data platform design ([`docs/data-model/`](../data-model/)) into a concrete, reviewable schema proposal (as a new ADR): field types, keys, relationships, and Row-Level Security policy design for office- and organization-scoped tables. Reconcile the two SecurityRole candidate lists, settle Scenario versioning and the Notifications entity question, resolve enough of OQ-056 through OQ-061 (Labor Model/import specifics), and resolve the legacy reconciliation questions (OQ-066–OQ-073) to avoid designing around unconfirmed assumptions. Still no migrations or application code — Sprint 3 produces a reviewable design, not running SQL.
+**Sprint 3C – RLS and Security Policy Design.** Using the Sprint 3B physical-model proposal ([`docs/database/`](../database/)) and the ownership/access dependencies recorded in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md), design (as documentation, not executable SQL) the Row-Level Security policy logic for every tenant-owned table, and resolve the `organization_id`/`office_id` consistency-enforcement mechanism flagged as a Sprint 3B risk. Sprint 3D (Independent Design Review) should follow before any part of the physical model is treated as Accepted. See [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md) Section 10 for the full gated Sprint 3A–3D plan. Still no migrations or application code.
 
 ## Repository Health
 
-- Status: Platform Design, as intended — no application code, no dependencies, no database migrations exist.
-- Documentation is internally cross-linked (business rules, metrics dictionary, architecture, imports, scenario engine, entities, data model, legacy findings, decisions, open questions, and the AI knowledge layer) and has been kept consistent across updates.
-- No confidential, real employee, real customer, or real financial data has been found in the repository as of this update, including in the legacy source inspected during Sprint 2.5 (confirmed during the Repository Comparison Audit).
-- Open-question backlog is actively used and current (73 tracked questions as of this update) rather than left to go stale.
-- Business-rule and metric documents consistently flag unresolved formulas rather than assuming values, per [`CLAUDE.md`](../../CLAUDE.md) — including newly discovered legacy formulas, none of which were adopted without flagging them for validation.
-- A repository-stewardship rule exists in [`CLAUDE.md`](../../CLAUDE.md) requiring this file, AI_CONTEXT, EXECUTIVE_SUMMARY, PRODUCT_BACKLOG, README, and DECISION_LOG to be reviewed at the end of every sprint — this update is the third application of that rule.
+- Status: Platform Design / Sprint 3 (Database Design) underway — no application code, no dependencies, no database migrations exist. Sprint 3B's physical-model proposal is documentation only, still local and uncommitted pending founder review.
+- Documentation is internally cross-linked (business rules, metrics dictionary, architecture, imports, scenario engine, entities, data model, database design proposal, legacy findings, decisions, open questions, and the AI knowledge layer) and has been kept consistent across updates.
+- No confidential, real employee, real customer, or real financial data has been found in the repository as of this update, including in the legacy source inspected during Sprint 2.5 and the new [`docs/database/`](../database/) documents added in Sprint 3B.
+- Open-question backlog is actively used and current (73 tracked questions as of this update; four resolved or partially resolved this sprint — OQ-055, OQ-060, OQ-061, OQ-066) rather than left to go stale.
+- Business-rule and metric documents consistently flag unresolved formulas rather than assuming values, per [`CLAUDE.md`](../../CLAUDE.md) — including newly discovered legacy formulas, none of which were adopted without flagging them for validation, and including every judgment call made during Sprint 3B's physical-model design, flagged individually rather than silently decided.
+- A repository-stewardship rule exists in [`CLAUDE.md`](../../CLAUDE.md) requiring this file, AI_CONTEXT, EXECUTIVE_SUMMARY, PRODUCT_BACKLOG, README, and DECISION_LOG to be reviewed at the end of every sprint — this update is the fifth application of that rule.
 
 ## Current Sprint
 
-**Sprint 2.5 – Legacy Knowledge Extraction: Complete (2026-08-04).**
+**Sprint 3B – Logical-to-Physical Database Mapping: Complete (2026-08-05).**
 
-Scope: a repository comparison audit (see prior conversation) found the founder's archived GitHub repository contains a working Tauri desktop application covering much of LabPulse's business domain. This sprint extracted its business rules, formulas, import workflows, terminology, and gaps into [`docs/legacy/`](../legacy/README.md), classifying every finding against current architecture without adopting any of it automatically. No application code was written or copied, the legacy repository was not modified, and no architecture decisions were altered.
+Scope: following Sprint 3A's decision-reconciliation report and the founder's explicit approval of its recommendations, this sprint translated the conceptual entity catalog and logical data platform design into a proposed PostgreSQL/Supabase physical schema. Created [`docs/database/`](../database/) (ten documents), [`docs/architecture/erd-physical-proposed.md`](../architecture/erd-physical-proposed.md), and [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md) (Proposed). Accepted [ADR-004](../decisions/ADR-004-office-based-authorization.md). Updated [`docs/entities/security-role.md`](../entities/security-role.md), [`permission.md`](../entities/permission.md), [`labor-model-snapshot.md`](../entities/labor-model-snapshot.md), [`backlog-snapshot.md`](../entities/backlog-snapshot.md), [`docs/data-model/05-retention-policy.md`](../data-model/05-retention-policy.md), [`snapshot-strategy.md`](../data-model/snapshot-strategy.md), [`docs/data/01-metrics-dictionary.md`](../data/01-metrics-dictionary.md), and [`docs/development/open-questions.md`](open-questions.md) (OQ-055, OQ-060, OQ-061, OQ-066). No SQL, migrations, Supabase project, dependencies, or application code were created; nothing was committed or pushed — see [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md) for the full report.
 
-Prior sprints: **Sprint 2 – Data Platform Design** (2026-08-04) delivered ADR-006 and the full [`docs/data-model/`](../data-model/) set, [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md), and [`docs/architecture/erd-concept.md`](../architecture/erd-concept.md). **Sprint 1.5 – Domain Model Finalization & AI Knowledge Layer** (2026-08-04) delivered the AI knowledge layer, ADR-000, the JobRole/SecurityRole split, the Office/Location convention, four purpose-only snapshot entities, the immutable Recommendation lifecycle, and the event-driven conceptual pipeline. **Sprint 1 – Platform Foundation** (2026-08-04) delivered the North Star, ADR-005, the original 18-entity conceptual catalog, the Recommendation Framework, and the Decision Graph.
+**Sprint 3A – Decision Reconciliation and Schema Readiness: Complete (2026-08-05).** Produced a corrected decision-reconciliation report reviewing an external architecture review against actual repository state; identified OQ-061 as the only genuine schema blocker and produced the five-item founder decision packet Sprint 3B then implemented.
 
-**Sprint 3 (Database Design) has not started.**
+Prior sprints: **Sprint 2.5 – Legacy Knowledge Extraction** (2026-08-04) extracted business rules, formulas, import workflows, terminology, and gaps from the founder's archived Tauri desktop application into [`docs/legacy/`](../legacy/README.md), without adopting any of it automatically. **Sprint 2 – Data Platform Design** (2026-08-04) delivered ADR-006 and the full [`docs/data-model/`](../data-model/) set, [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md), and [`docs/architecture/erd-concept.md`](../architecture/erd-concept.md). **Sprint 1.5 – Domain Model Finalization & AI Knowledge Layer** (2026-08-04) delivered the AI knowledge layer, ADR-000, the JobRole/SecurityRole split, the Office/Location convention, four purpose-only snapshot entities, the immutable Recommendation lifecycle, and the event-driven conceptual pipeline. **Sprint 1 – Platform Foundation** (2026-08-04) delivered the North Star, ADR-005, the original 18-entity conceptual catalog, the Recommendation Framework, and the Decision Graph.
+
+**Sprint 3C (RLS and Security Policy Design) has not started.**
 
 ## Open Questions
 
@@ -189,11 +209,11 @@ The authoritative, individually tracked question log is [`docs/development/open-
 - Quality (OQ-021–OQ-026)
 - Revenue root cause (OQ-027–OQ-032)
 - Operational decisions (OQ-033–OQ-042)
-- Architecture and authorization (OQ-053 Resolved; OQ-054–OQ-055 still open)
-- Import framework and Labor Model (OQ-056–OQ-061)
+- Architecture and authorization (OQ-053 Resolved; OQ-054 partially resolved; OQ-055 resolved for MVP)
+- Import framework and Labor Model (OQ-056–OQ-059 still open; OQ-060 resolved; OQ-061 partially resolved at the architecture level)
 - New business rules and scenario engine (OQ-062–OQ-065)
-- **Legacy reconciliation (OQ-066–OQ-073, new this sprint)** — threshold conflicts, terminology equivalence, backlog/production taxonomy, candidate metrics (Margin %, Outside Lab Spend, Data Completeness %), submission compliance, weekly-to-monthly aggregation, and Labor Model Value
+- **Legacy reconciliation (OQ-066–OQ-073)** — OQ-066 (threshold non-adoption) resolved for MVP this sprint; OQ-067–OQ-073 (terminology equivalence, backlog/production taxonomy, candidate metrics, submission compliance, weekly-to-monthly aggregation, Labor Model Value) remain open
 
-Not yet numbered open questions, but tracked here and recommended for the log before Sprint 3: reconciling the two SecurityRole candidate lists (see [`docs/entities/security-role.md`](../entities/security-role.md)), Scenario definition versioning, hard-delete/retention reconciliation, and whether a formal Notifications entity is needed (see Known Risks above).
+Not yet numbered open questions, but tracked here: the exact `organization_id`/`office_id` consistency-enforcement mechanism (new this sprint, see Known Risks), and the judgment calls flagged throughout [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md) awaiting Sprint 3D confirmation.
 
-No formula, threshold, or business rule should be implemented from an open question until it is resolved and dated — this now explicitly includes every formula and threshold found in the legacy application (see [`docs/legacy/`](../legacy/README.md)).
+No formula, threshold, or business rule should be implemented from an open question until it is resolved and dated — this now explicitly includes every formula and threshold found in the legacy application (see [`docs/legacy/`](../legacy/README.md)) and every judgment call flagged in the Sprint 3B physical-model proposal until Sprint 3D confirms it.

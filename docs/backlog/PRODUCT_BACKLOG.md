@@ -1,8 +1,8 @@
 # LabPulse Product Backlog
 
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Discovery
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -58,7 +58,7 @@ Prepared the repository so future AI sessions and contributors can rely on it as
 - [Event-Driven Processing](../architecture/event-driven-processing.md) conceptual pipeline documented (architectural guidance only)
 - [`CLAUDE.md`](../../CLAUDE.md) Repository Stewardship rule established
 
-Still no backlog item has moved out of **Discovery** status. New open item: reconcile the two SecurityRole candidate lists (see [`docs/entities/security-role.md`](../entities/security-role.md)) — added under Epic: Authentication below.
+Still no backlog item has moved out of **Discovery** status. New open item raised this sprint (reconcile the two SecurityRole candidate lists) was resolved for MVP in Sprint 3B — see Sprint 3B entry below.
 
 ### Sprint 2 – Data Platform Design: Complete (2026-08-04)
 
@@ -88,7 +88,26 @@ A repository comparison audit found the founder's archived GitHub repository con
 
 **Critical finding:** legacy alert thresholds conflict sharply with approved thresholds (see [`docs/legacy/03-business-rule-comparison.md`](../legacy/03-business-rule-comparison.md)) — new backlog items added below (Epic: Business Rules) to track resolution. 8 new open questions added (OQ-066–OQ-073).
 
-### Sprint 3 – Database Design: Not started
+### Sprint 3A – Decision Reconciliation and Schema Readiness: Complete (2026-08-05)
+
+An independent review corrected several unverifiable or contradicted findings from an external architecture review against actual repository state, identified OQ-061 (staffing unit) as the only genuine schema-blocking open question, and produced a five-item founder decision packet.
+
+### Sprint 3B – Logical-to-Physical Database Mapping: Complete (2026-08-05)
+
+Following founder approval of the Sprint 3A decision packet, proposed a PostgreSQL/Supabase physical schema (documentation only, no SQL or migrations):
+
+- [`docs/database/`](../database/) (10 documents): physical model principles, table catalog, column/type catalog, keys/relationships/constraints, temporal/versioning/snapshots, import lineage, authorization data model, retention/archive/erasure boundaries, deferred entities, schema review checklist
+- [ERD (Physical, Proposed)](../architecture/erd-physical-proposed.md) — 4 Mermaid diagrams distinguishing MVP, deferred, optional, version, and header/detail structures
+- [ADR-007: Proposed Physical Data Model](../decisions/ADR-007-proposed-physical-data-model.md) (Proposed)
+- [ADR-004](../decisions/ADR-004-office-based-authorization.md) formally **Accepted**
+
+**Resolved this sprint:** the SecurityRole candidate-list reconciliation (three roles approved for MVP, six deferred — see Epic: Authentication below), the Labor Model/Payroll Percentage separation (OQ-060), the extensible staffing-unit design (OQ-061, architecture level only), the BacklogSnapshot taxonomy strategy (header/detail/dimension, moved into MVP scope), the retention default (archive/deactivate confirmed), legacy-threshold non-adoption (OQ-066, for MVP), and franchise-grouping MVP exclusion (OQ-055).
+
+**New open item raised this sprint:** the `organization_id`/`office_id` consistency-enforcement mechanism for the denormalized tenant-scoping design — see [`docs/database/04-keys-relationships-and-constraints.md`](../database/04-keys-relationships-and-constraints.md) and Epic: Database below.
+
+See [`docs/development/SPRINT_3B_REPORT.md`](../development/SPRINT_3B_REPORT.md) for the complete report.
+
+### Sprint 3C – RLS and Security Policy Design: Not started
 
 See [`docs/development/PROJECT_MEMORY.md`](../development/PROJECT_MEMORY.md) Recommended Next Sprint.
 
@@ -98,21 +117,21 @@ See [`docs/development/PROJECT_MEMORY.md`](../development/PROJECT_MEMORY.md) Rec
 
 - Implement BR-001 Prioritize Location Review — **Discovery**
 - Implement BR-002 Hiring Recommendation — **Discovery** (blocked on OQ-062)
-- Implement BR-003 Understaffing Detection — **Discovery** (blocked on OQ-061, OQ-063)
+- Implement BR-003 Understaffing Detection — **Discovery** (blocked on OQ-063; OQ-061 partially resolved 2026-08-05 at the architecture level, see [`docs/entities/labor-model-snapshot.md`](../entities/labor-model-snapshot.md))
 - Implement BR-004 Overtime Escalation — **Discovery** (blocked on OQ-047, OQ-064)
 - Implement BR-005 LSS Recommendation — **Discovery** (blocked on OQ-040, OQ-041)
 - Implement BR-006 Staffing Adherence — **Discovery** (blocked on OQ-059, OQ-065)
 - Design the standard Recommendation object structure — **Discovery** (conceptual design complete, see [`docs/architecture/recommendation-framework.md`](../architecture/recommendation-framework.md) and [`docs/data-model/recommendation-persistence.md`](../data-model/recommendation-persistence.md); implementation still Discovery)
 - Design a shared business-rule evaluation and versioning mechanism — **Discovery** (conceptual versioning strategy complete, see [`docs/data-model/03-versioning-strategy.md`](../data-model/03-versioning-strategy.md))
-- Reconcile legacy alert thresholds against approved thresholds (laboratory expense, personnel/payroll, backlog) — **Discovery** (new this sprint; see [`docs/legacy/03-business-rule-comparison.md`](../legacy/03-business-rule-comparison.md), OQ-066)
+- Reconcile legacy alert thresholds against approved thresholds (laboratory expense, personnel/payroll, backlog) — **Resolved for MVP, 2026-08-05** — legacy thresholds not adopted; approved thresholds remain configurable/versioned defaults (OQ-066). A future volume-adjusted threshold model remains a separate, unresolved enhancement.
 - Evaluate candidate metrics discovered in the legacy application (Margin %, Outside Lab Spend, Outside Lab Spend %, Data Completeness %) for inclusion in the Metrics Dictionary — **Discovery** (see [`docs/legacy/04-formula-candidates.md`](../legacy/04-formula-candidates.md), OQ-070)
 
 ## Epic: Import Framework
 
-- Design the Canonical LabPulse Data Model schema — **Discovery** (conceptual entity catalog and logical data model complete, see [`docs/entities/`](../entities/), [ADR-005](../decisions/ADR-005-canonical-data-model.md), and [`docs/data-model/`](../data-model/); concrete schema is Sprint 3 scope)
-- Implement raw-import/archive/audit persistence — **Discovery** (conceptual design complete, see [`docs/data-model/import-persistence.md`](../data-model/import-persistence.md))
-- Implement the Import Profile schema (expected sheets, required/optional columns, aliases, version, validation rules, normalization rules) — **Discovery**
-- Implement the Labor Model import profile — **Discovery** (blocked on OQ-056–OQ-061)
+- Design the Canonical LabPulse Data Model schema — **Discovery** (conceptual entity catalog and logical data model complete; a **proposed** physical schema now exists, see [`docs/database/`](../database/) and [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md), Proposed, pending Sprint 3D review)
+- Implement raw-import/archive/audit persistence — **Discovery** (conceptual design complete, see [`docs/data-model/import-persistence.md`](../data-model/import-persistence.md); physical proposal in [`docs/database/06-import-lineage-model.md`](../database/06-import-lineage-model.md))
+- Implement the Import Profile schema (expected sheets, required/optional columns, aliases, version, validation rules, normalization rules) — **Discovery** (physical proposal in [`docs/database/06-import-lineage-model.md`](../database/06-import-lineage-model.md))
+- Implement the Labor Model import profile — **Discovery** (blocked on OQ-056–OQ-059; OQ-060 resolved, OQ-061 partially resolved at the architecture level as of 2026-08-05)
 - Implement the P&L import profile — **Discovery**
 - Implement the Payroll import profile — **Discovery**
 - Implement the Career Grid import profile — **Discovery**
@@ -145,32 +164,34 @@ See [`docs/development/PROJECT_MEMORY.md`](../development/PROJECT_MEMORY.md) Rec
 
 ## Epic: Notifications
 
-- Decide whether Notifications needs a formal entity (a NotificationRecord) or remains an ephemeral delivery mechanism over existing Alert/Recommendation state — **Discovery** (new this sprint, see [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md) Open Questions)
+- Decide whether Notifications needs a formal entity (a NotificationRecord) or remains an ephemeral delivery mechanism over existing Alert/Recommendation state — **Discovery** (see [`docs/architecture/domain-boundaries.md`](../architecture/domain-boundaries.md) Open Questions; Sprint 3B confirmed no physical table is created for MVP either way, see [`docs/database/09-deferred-entities.md`](../database/09-deferred-entities.md) — this defers the decision, it does not answer it)
 - Design the notification-delivery step in the event-driven conceptual pipeline — **Discovery** (see [`docs/architecture/event-driven-processing.md`](../architecture/event-driven-processing.md); no technology chosen)
 
 ## Epic: Authentication
 
 - Implement Supabase Auth integration — **Discovery**
-- Implement the Office Authorization hierarchy (Organization -> Office -> Permissions -> User) per [ADR-004](../decisions/ADR-004-office-based-authorization.md) — **Discovery** (blocked on OQ-054, OQ-055)
-- Implement capability-based SecurityRole access control (candidate role values under reconciliation — see [`docs/entities/security-role.md`](../entities/security-role.md); capability model designed in [`docs/data-model/permission-model.md`](../data-model/permission-model.md)) — **Discovery**
-- Implement temporary office assignment support — **Discovery** (blocked on OQ-054)
-- Reconcile the two SecurityRole candidate lists (PRD's initial three vs. Sprint 1.5's expanded six) — **Discovery** (see [`docs/entities/security-role.md`](../entities/security-role.md))
-- Define the final Capability list per SecurityRole's Permission Set — **Discovery** (blocked on the reconciliation above; see [`docs/data-model/permission-model.md`](../data-model/permission-model.md))
+- Implement the Office Authorization hierarchy (Organization -> Office -> Permissions -> User) per [ADR-004](../decisions/ADR-004-office-based-authorization.md) (Accepted 2026-08-05) — **Discovery** (OQ-055 resolved for MVP; OQ-054 partially resolved — physical column design proposed, expiry enforcement still open; physical proposal in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md))
+- Implement capability-based SecurityRole access control (MVP list resolved 2026-08-05: Organization Administrator, Operations Manager, Read-Only Viewer; 6 more explicitly deferred — see [`docs/entities/security-role.md`](../entities/security-role.md); capability model designed in [`docs/data-model/permission-model.md`](../data-model/permission-model.md); physical proposal in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md)) — **Discovery**
+- Implement temporary office assignment support — **Discovery** (physical columns proposed 2026-08-05; expiry-enforcement mechanism still blocked on OQ-054)
+- ~~Reconcile the two SecurityRole candidate lists~~ — **Resolved for MVP, 2026-08-05** — see [`docs/entities/security-role.md`](../entities/security-role.md).
+- Define the final Capability list per SecurityRole's Permission Set — **Discovery** (illustrative examples only proposed in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md); final list still not confirmed)
 
 ## Epic: Security
 
-- Implement Row-Level Security policies scoped to organization and office — **Discovery**
+- Implement Row-Level Security policies scoped to organization and office — **Discovery** (blocked on Sprint 3C; ownership/access dependencies documented in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md); new blocker raised in Sprint 3B — the `organization_id`/`office_id` consistency-enforcement mechanism must be resolved first, see [`docs/database/04-keys-relationships-and-constraints.md`](../database/04-keys-relationships-and-constraints.md))
 - Implement cross-tenant access tests — **Discovery**
 - Implement file-upload validation and private storage for imports — **Discovery**
-- Implement audit logging for imports, SecurityRole changes, and scenario execution — **Discovery** (conceptual audit strategy complete, see [`docs/data-model/04-audit-strategy.md`](../data-model/04-audit-strategy.md))
+- Implement audit logging for imports, SecurityRole changes, and scenario execution — **Discovery** (conceptual audit strategy complete, see [`docs/data-model/04-audit-strategy.md`](../data-model/04-audit-strategy.md); physical proposal in [`docs/database/03-column-and-type-catalog.md`](../database/03-column-and-type-catalog.md) `audit_event`)
 - Implement AI credential storage design and review — **Discovery**
 
 ## Epic: Database
 
-- Design and approve the initial schema (organizations, offices, permissions, imports, import profiles, canonical records, business-rule outputs, scenarios) — **Discovery** (conceptual entity relationships, lifecycle, and ERD complete, see [`docs/data-model/`](../data-model/) and [`docs/architecture/erd-concept.md`](../architecture/erd-concept.md); this is Sprint 3 scope)
+- Design and approve the initial schema (organizations, offices, permissions, imports, import profiles, canonical records, business-rule outputs, scenarios) — **Discovery** (a **proposed** physical schema now exists as of Sprint 3B, see [`docs/database/`](../database/), [`docs/architecture/erd-physical-proposed.md`](../architecture/erd-physical-proposed.md), and [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md); pending Sprint 3D independent review before approval)
 - Establish migration tooling and source-control tracking — **Discovery**
 - Design RLS test strategy — **Discovery**
-- Reconcile "nothing is deleted" with legitimate hard-delete/erasure obligations — **Discovery** (new this sprint, see [`docs/data-model/05-retention-policy.md`](../data-model/05-retention-policy.md) Open Questions)
+- Reconcile "nothing is deleted" with legitimate hard-delete/erasure obligations — **Discovery** (default posture confirmed 2026-08-05 — archive/deactivate, not hard-delete; exceptional erasure pathway remains deliberately undesigned, see [`docs/database/08-retention-archive-and-erasure-boundaries.md`](../database/08-retention-archive-and-erasure-boundaries.md))
+- New (Sprint 3B): resolve the `organization_id`/`office_id` consistency-enforcement mechanism for denormalized tenant-scoping columns — **Discovery** (see [`docs/database/04-keys-relationships-and-constraints.md`](../database/04-keys-relationships-and-constraints.md))
+- New (Sprint 3B): confirm or revise the engineering judgment calls flagged in [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md) (`metric_observation` persistence approach, 1:1 SecurityRole–Permission-Set assumption, optional `employee_office_assignment` and `task_status_history` tables) — **Discovery** (Sprint 3D scope)
 
 ## Epic: Integrations
 

@@ -1,9 +1,9 @@
 # Retention Policy
 
-**Version:** 0.1
-**Status:** Discovery / Data Platform Design — directional, not final
+**Version:** 0.2
+**Status:** Discovery / Data Platform Design — archive/deactivate default confirmed 2026-08-05; erasure pathway still directional, not final
 **Owner:** Lab Operations / Engineering
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -33,6 +33,12 @@ Describe how long LabPulse retains different categories of data, consistent with
 ## Archival, Not Deletion, Is the Default Offboarding Behavior
 
 When an office closes, an employee departs, or an organization's contract ends, the default behavior is to **archive**, not delete (see [`02-data-lifecycle.md`](02-data-lifecycle.md) Archived state) — the data becomes inactive and excluded from normal views, but remains intact and auditable.
+
+## Founder Confirmation (Sprint 3B, 2026-08-05)
+
+The founder confirmed the default posture above as a controlling decision for Sprint 3B (see [`docs/development/SPRINT_3B_REPORT.md`](../development/SPRINT_3B_REPORT.md) Founder-Approved Decision 6): archive and deactivate, not hard-delete, is the default; historical snapshots, alerts, recommendations, evidence, imports, and audit history are preserved; no cascading deletion may destroy historical operational or financial evidence. This is recorded here as **confirmed default behavior**, physically proposed in [`docs/database/08-retention-archive-and-erasure-boundaries.md`](../database/08-retention-archive-and-erasure-boundaries.md) (no `ON DELETE CASCADE` anywhere in the proposed schema; archival expressed through meaningful status columns, not a generic delete flag).
+
+**This confirmation explicitly does not resolve** the exceptional-erasure question below — the founder's decision was to confirm the default and *separately* leave contractual/legal erasure as its own unresolved pathway, to be designed only when a real obligation requires it. No universal self-service hard-delete mechanism was authorized or designed in Sprint 3B. A future design may use identity anonymization or tombstoning, and may separate identifying data from immutable operational facts — both recorded as future *options*, not decided mechanisms, in [`docs/database/08-retention-archive-and-erasure-boundaries.md`](../database/08-retention-archive-and-erasure-boundaries.md).
 
 ## Where Deletion May Legitimately Be Required
 

@@ -1,8 +1,8 @@
 # LabPulse Open Questions
 
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Discovery
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -602,10 +602,10 @@ Unless otherwise noted, status is `Open` and owner is `Founder / Lab Operations`
 **Category:** Architecture and authorization
 **Question:** How should a future franchise grouping fit into the Organization -> Office -> Permissions -> User hierarchy?
 **Why it matters:** ADR-004 names future franchises as a required access pattern but does not design where a franchise grouping sits relative to organization and office.
-**Status:** Open
+**Status:** Resolved for MVP (future design deferred)
 **Owner:** Founder / Lab Operations
-**Answer or decision:**
-**Date resolved:**
+**Answer or decision:** The founder confirmed franchise grouping is excluded from the MVP physical tenant hierarchy (Sprint 3B). For MVP, Organizations are isolated tenants and every Office belongs to exactly one Organization, with no cross-Organization franchise access structure. Where franchise support fits relative to Organization and Office remains unresolved and is explicitly deferred to a future architecture review — this decision only confirms MVP exclusion, not the eventual design. See [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md) and [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md).
+**Date resolved:** 2026-08-05 (MVP scope only)
 
 ---
 
@@ -656,20 +656,20 @@ Unless otherwise noted, status is `Open` and owner is `Founder / Lab Operations`
 **Category:** Import framework and Labor Model
 **Question:** Is "Labor % of Revenue" in the Labor Model workbook the same calculation as the P&L-derived Payroll Percentage metric, or a separate, potentially divergent value?
 **Why it matters:** If these two values can diverge, presenting them without distinction could mislead a manager about payroll performance; see [`docs/imports/02-labor-model-import.md`](../imports/02-labor-model-import.md).
-**Status:** Open
+**Status:** Resolved (separation decision only — underlying formulas still unconfirmed)
 **Owner:** Founder / Lab Operations
-**Answer or decision:**
-**Date resolved:**
+**Answer or decision:** The founder confirmed (Sprint 3B) that Labor % of Revenue (Labor Model workbook) and Payroll Percentage (P&L-derived) are treated as two permanently separate facts, never merged, overwritten, or treated as equivalent. Labor % of Revenue retains its Labor-Model source lineage and terminology; Payroll Percentage is calculated only from approved P&L revenue and qualifying payroll-expense definitions. This resolves whether the two may be conflated (no); it does **not** resolve whether their underlying formulas actually produce the same or different numeric results for a real workbook — that remains unconfirmed. See [`docs/data/01-metrics-dictionary.md`](../data/01-metrics-dictionary.md) Labor % of Revenue and [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md).
+**Date resolved:** 2026-08-05 (separation decision only)
 
 ### OQ-061
 
 **Category:** Import framework and Labor Model
 **Question:** What unit is used for Recommended Staffing and Current Staffing (headcount, full-time equivalent, or role-specific breakdown)?
 **Why it matters:** Required to implement [BR-003 Understaffing Detection](../business/rules/BR-003-understaffing-detection.md) and to normalize Labor Model data consistently.
-**Status:** Open
+**Status:** Partially resolved (architecture level only — source unit still unconfirmed)
 **Owner:** Founder / Lab Operations
-**Answer or decision:**
-**Date resolved:**
+**Answer or decision:** The founder approved (Sprint 3B) an extensible physical design that supports headcount, full-time-equivalent, and role-broken-out staffing measures simultaneously, via a staffing-measure detail table rather than fixed columns (see [`docs/entities/labor-model-snapshot.md`](../entities/labor-model-snapshot.md) and [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md)). This resolves the schema-design half of this question — no redesign will be needed once the real unit is confirmed. **Not resolved:** which unit the current Labor Model workbook actually uses; that requires source confirmation and remains open.
+**Date resolved:** 2026-08-05 (architecture-level only)
 
 ---
 
@@ -726,10 +726,10 @@ Surfaced by Sprint 2.5 (Legacy Knowledge Extraction) from the archived Tauri des
 **Category:** Legacy reconciliation
 **Question:** Do the legacy application's alert thresholds (Lab Expense >20%/>25%, Personnel >15%/>20%, Backlog >50/>100 cases) indicate the currently approved thresholds (10.8%, 8.0%, 20 cases) should be reconsidered, or do they reflect a different context (for example, specific high-volume offices)?
 **Why it matters:** A real, working prior implementation used substantially higher thresholds than [BR-001](../business/rules/BR-001-prioritize-location-review.md)'s approved values. This conflict should not be silently resolved in either direction.
-**Status:** Open
+**Status:** Resolved for MVP (volume-adjusted thresholds remain a future enhancement)
 **Owner:** Founder / Lab Operations
-**Answer or decision:**
-**Date resolved:**
+**Answer or decision:** The founder confirmed (Sprint 3B) that the legacy thresholds are **not** adopted merely because the prior Tauri application used them; legacy behavior remains evidence for investigation only, never an approved default. The four currently approved thresholds (Payroll Percentage 8.0%, Laboratory Expense Percentage 10.8%, Monthly Overtime Cost >$500, Backlog 20+ cases) remain the configurable, versioned defaults — see [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md) `business_rule_version`. A future volume-adjusted or office-size-adjusted threshold model remains a separate, unresolved enhancement, not ruled out by this decision.
+**Date resolved:** 2026-08-05 (non-adoption confirmed for MVP)
 
 ### OQ-067
 

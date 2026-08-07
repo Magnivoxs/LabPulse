@@ -1,9 +1,9 @@
 # Snapshot Strategy
 
-**Version:** 0.1
-**Status:** Discovery / Data Platform Design
+**Version:** 0.2
+**Status:** Discovery / Data Platform Design — MVP physical-schema readiness updated 2026-08-05
 **Owner:** Engineering / Lab Operations
-**Last Updated:** 2026-08-04
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -46,6 +46,7 @@ Document every canonical snapshot entity's data-platform characteristics — upd
 - **Lifecycle:** Standard (above).
 - **Versioning:** Standard (above).
 - **Retention:** Standard (above); backlog trend display is an explicit product requirement ([`docs/business/07-backlog.md`](../business/07-backlog.md)).
+- **MVP physical-schema readiness (Sprint 3B, 2026-08-05):** moved into MVP scope via a header/detail/dimension design (`backlog_snapshot` + `backlog_stage_count` + a configurable, versioned `production_stage` dimension) that does not require the final production-stage taxonomy (OQ-049, OQ-069) to be confirmed before the tables exist — a new or renamed stage is a new row, not a schema change. See [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md).
 
 ## ProductionSnapshot
 
@@ -78,6 +79,10 @@ Document every canonical snapshot entity's data-platform characteristics — upd
 - **Lifecycle:** Standard (above), once fields are defined.
 - **Versioning:** Standard (above).
 - **Retention:** Standard (above); required for Open Positions trend and for correlating recruiting response time against Understaffing Detection alerts.
+
+## MVP Physical-Schema Status (Sprint 3B, 2026-08-05)
+
+RevenueSnapshot, PayrollSnapshot, LaborModelSnapshot, and BacklogSnapshot all have proposed physical table designs as of Sprint 3B — see [`docs/database/02-table-catalog.md`](../database/02-table-catalog.md). **ProductionSnapshot, QualitySnapshot, CareerGridSnapshot, and RecruitingSnapshot remain physically deferred** — no table was created for any of the four, per [`docs/database/09-deferred-entities.md`](../database/09-deferred-entities.md); their entries below are unchanged from prior sprints and remain purpose/relationships-only.
 
 ## Summary Table
 

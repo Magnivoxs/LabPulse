@@ -1,7 +1,7 @@
 # LabPulse Decision Log
 
-**Version:** 0.1
-**Last Updated:** 2026-08-04
+**Version:** 0.2
+**Last Updated:** 2026-08-05
 
 ## Purpose
 
@@ -120,6 +120,13 @@ Each entry includes: Date, Decision, Reason, Related ADR, Related Business Rule,
 **Related Business Rule:** BR-001 (threshold conflicts directly affect it); indirectly BR-002 through BR-006
 **Impact:** [`docs/legacy/`](../legacy/README.md) created (10 documents). No legacy code was copied or reused. Every finding classified as Already Documented / Needs Validation / Missing from Architecture / Legacy Only / Reject — nothing adopted automatically. 8 new open questions added (OQ-066–OQ-073).
 
+### 2026-08-05 — Accept ADR-004 (Office-Based Authorization) and approve Sprint 3B's founder decision packet
+
+**Reason:** Following the Sprint 3A independent decision-reconciliation review, the founder explicitly authorized Sprint 3B (Logical-to-Physical Database Mapping) and approved a packet of controlling decisions needed to unblock physical schema design: canonical Office/Location terminology (reaffirmed), the MVP SecurityRole list, an extensible staffing-unit representation, the Labor Model/Payroll Percentage separation, a header/detail/dimension BacklogSnapshot design, the archive-not-delete retention default, non-adoption of legacy thresholds, and franchise-grouping exclusion from MVP.
+**Related ADR:** [ADR-004](../decisions/ADR-004-office-based-authorization.md) (Proposed → Accepted); [ADR-007](../decisions/ADR-007-proposed-physical-data-model.md) (new, Proposed)
+**Related Business Rule:** BR-001 (thresholds reaffirmed, not changed)
+**Impact:** [`docs/database/`](../database/) (ten documents) and [`docs/architecture/erd-physical-proposed.md`](../architecture/erd-physical-proposed.md) created as the Sprint 3B physical-model proposal. OQ-055, OQ-060, OQ-061, and OQ-066 updated in [`docs/development/open-questions.md`](open-questions.md) to reflect exactly what was resolved (see that document for the precise scope of each — several are resolved only "for MVP" or "at the architecture level," not resolved in full). No migration, SQL, or Supabase project was created. See [`docs/development/SPRINT_3B_REPORT.md`](SPRINT_3B_REPORT.md) for the complete founder decision packet and physical-model summary.
+
 ## Related Documents
 
 - [Project Memory](PROJECT_MEMORY.md)
@@ -127,3 +134,4 @@ Each entry includes: Date, Decision, Reason, Related ADR, Related Business Rule,
 - [Executive Summary](EXECUTIVE_SUMMARY.md)
 - [Architecture Decisions](../decisions/README.md)
 - [Open Questions](open-questions.md)
+- [Sprint 3B Report](SPRINT_3B_REPORT.md)

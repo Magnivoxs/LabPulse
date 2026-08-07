@@ -1,6 +1,6 @@
 # ADR-004: Use Office-Based Authorization Instead of Region-Based Authorization
 
-**Status:** Proposed
+**Status:** Accepted (2026-08-05)
 **Date:** 2026-08-04
 
 ## Context
@@ -75,6 +75,12 @@ Existing documents (for example, the metrics dictionary and BR-001) that use `lo
 - Import profiles that reference "Office ID" (for example, the Labor Model import) map directly to the canonical `office` entity.
 - Future franchise support and temporary assignment support require their own design work before implementation; they are recorded as pending architecture in [`docs/development/PROJECT_MEMORY.md`](../development/PROJECT_MEMORY.md).
 - No database migration is created by this ADR; the project remains in architecture and documentation, not implementation.
+
+## Acceptance (2026-08-05)
+
+**Update (Sprint 3B, 2026-08-05): Accepted.** The founder explicitly approved office-based authorization as a controlling decision for Sprint 3B — Logical-to-Physical Database Mapping (see [`docs/development/SPRINT_3B_REPORT.md`](../development/SPRINT_3B_REPORT.md) Founder-Approved Decision 1 and 2). This ADR's decision, reasons, and terminology resolution (above) are unchanged by acceptance; only the Status field is updated, per [`docs/decisions/README.md`](README.md) ("Do not rewrite accepted ADR history"). The physical implementation of this decision is proposed in [`docs/database/07-authorization-data-model.md`](../database/07-authorization-data-model.md) and [ADR-007](ADR-007-proposed-physical-data-model.md) (Status: Proposed, pending Sprint 3D review).
+
+Temporary office assignments and future franchise groupings, named as pending risks at Proposed status, remain only **partially** addressed by Sprint 3B: temporary assignments now have a physical column design (`permission.effective_start_date`/`effective_end_date`), but expiry enforcement is still undesigned (OQ-054, partially resolved); franchise grouping remains explicitly deferred for MVP (OQ-055, resolved for MVP — see [`docs/development/open-questions.md`](../development/open-questions.md)).
 
 ## Conditions for Revisiting
 

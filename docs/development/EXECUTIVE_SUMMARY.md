@@ -1,7 +1,7 @@
 # LabPulse Executive Summary
 
-**Version:** 0.3
-**Date:** 2026-08-04
+**Version:** 0.4
+**Date:** 2026-08-05
 **Audience:** Founder, investors, architects, reviewers, and future contributors
 
 ## Mission
@@ -10,7 +10,7 @@ LabPulse is an operations intelligence and decision-support platform for dental 
 
 ## Current Maturity
 
-LabPulse is in **Platform Design**, the stage between business discovery and database/application implementation. No application code, third-party dependencies, database schema, or infrastructure has been created. What exists is a deliberately thorough body of business rules, architecture decisions, and a canonical data-model definition — the shared language every future engineering decision will be built on.
+LabPulse is in **Platform Design, with Sprint 3 (Database Design) now underway** — the stage between business discovery and database/application implementation. No application code, third-party dependencies, database migrations, or infrastructure has been created. A **proposed** physical database schema now exists as reviewable documentation (not executable SQL), alongside a deliberately thorough body of business rules, architecture decisions, and a canonical data-model definition — the shared language every future engineering decision will be built on.
 
 This is an intentional sequencing choice, not a delay: starting database or application work before this foundation existed would very likely have produced repeated schema redesigns and business logic tightly coupled to whichever spreadsheet format was analyzed first.
 
@@ -53,24 +53,24 @@ Beyond that, the roadmap (see [`docs/product/01-product-vision.md`](../product/0
 
 ## Repository Health
 
-The repository is internally consistent and actively cross-linked: business rules point to the metrics they use, entities point to the business rules and scenarios that reference them, every ADR points to the entities and rules it affects, and the new data-model documents point back to the entities and ADRs they elaborate. No confidential, real employee, real customer, or real financial data has been found in the repository at any point. An open-questions log (73+ tracked items) is treated as a first-class artifact rather than left to go stale, and a standing rule (see [`CLAUDE.md`](../../CLAUDE.md)) requires the repository's memory documents to be kept current at the end of every sprint — this document is itself evidence of that rule being followed for a third time.
+The repository is internally consistent and actively cross-linked: business rules point to the metrics they use, entities point to the business rules and scenarios that reference them, every ADR points to the entities and rules it affects, and the new data-model documents point back to the entities and ADRs they elaborate. No confidential, real employee, real customer, or real financial data has been found in the repository at any point. An open-questions log (73+ tracked items, four resolved or partially resolved as of Sprint 3B) is treated as a first-class artifact rather than left to go stale, and a standing rule (see [`CLAUDE.md`](../../CLAUDE.md)) requires the repository's memory documents to be kept current at the end of every sprint — this document is itself evidence of that rule being followed again at the close of Sprint 3B.
 
 ## Current Risks
 
-- **Design-before-implementation risk is being managed, not eliminated.** The conceptual entity catalog and logical data model could still reveal gaps once a real schema is attempted in Sprint 3.
-- **Two unreconciled candidate lists for security roles** (an earlier three-role list vs. a newer six-role list) need a founder decision before permissions can be designed.
+- **Design-before-implementation risk is being managed, not eliminated.** A proposed physical schema now exists (Sprint 3B), but it awaits an independent design review (Sprint 3D) before any table design is treated as final.
+- **Security-role candidate lists: resolved for MVP (2026-08-05).** The founder approved a three-role initial configuration (Organization Administrator, Operations Manager, Read-Only Viewer); six additional candidates are explicitly deferred pending confirmed capability requirements, not rejected.
 - **Only one source format (the Labor Model workbook) has been fully schema-documented**; P&L, Payroll, Career Grid, and Power BI imports still need the same treatment.
 - **Several business rules (hiring, understaffing, overtime escalation, LSS, staffing adherence) have no approved formulas yet** — a discipline that protects against guessing, but that also means those rules cannot be implemented as-is.
-- **"Nothing is deleted" is not yet reconciled with real-world deletion obligations** (contractual or legal erasure requests) — flagged, not resolved, this sprint.
-- **Scenario definitions are not yet formally versioned**, leaving one field of the new Recommendation persistence design (Scenario Version) not fully specifiable yet.
-- **Legacy alert thresholds conflict sharply with approved thresholds** (roughly double, in every case found) — unresolved; see Legacy Application Findings above and [`docs/legacy/03-business-rule-comparison.md`](../legacy/03-business-rule-comparison.md).
+- **"Nothing is deleted" default confirmed (2026-08-05); real-world deletion obligations remain unresolved.** Archive/deactivate is now the confirmed default; a legitimate contractual/legal erasure pathway remains deliberately undesigned.
+- **Scenario definitions now have a proposed physical versioning design** (Sprint 3B), closing the schema-level gap; the logical-model documentation has not yet been updated to match.
+- **Legacy alert thresholds: non-adoption resolved for MVP (2026-08-05).** The four approved thresholds remain configurable defaults; the legacy values were not adopted. A future volume-adjusted threshold model remains a separate, unresolved enhancement.
+- **New (Sprint 3B): an `organization_id`/`office_id` consistency-enforcement gap** exists in the proposed schema and must be resolved before Row-Level Security policies can safely trust it — see [`docs/database/04-keys-relationships-and-constraints.md`](../database/04-keys-relationships-and-constraints.md).
 
 ## Immediate Priorities
 
-1. Reconcile the two security-role candidate lists.
-2. Resolve the legacy threshold conflicts and backlog/production-taxonomy questions (OQ-066–OQ-073) — these directly affect Sprint 3 schema decisions.
-3. Resolve enough of the outstanding Labor Model and import-framework questions, Scenario versioning, and the deletion/retention question to support real schema design.
-4. Begin Sprint 3 (Database Design) once the above are addressed, translating the entity catalog and logical data model into a concrete, reviewable schema.
+1. Sprint 3C — design Row-Level Security policies for the proposed schema, and resolve the `organization_id`/`office_id` consistency-enforcement mechanism.
+2. Sprint 3D — commission an independent design review of the Sprint 3B physical-model proposal before treating any table design as final.
+3. Resolve the remaining legacy reconciliation questions (OQ-067–OQ-073) and Labor Model/import-framework specifics (OQ-056–OQ-059) as founder time allows — none currently block Sprint 3C.
 
 ## Future Vision
 
